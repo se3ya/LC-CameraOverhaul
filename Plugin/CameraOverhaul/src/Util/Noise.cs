@@ -147,5 +147,9 @@ internal static class Noise
         return Simplex(xr * 1.4f, yr * 1.4f + 17.3f);
     }
 
-    private static int FastFloor(float v) => v >= 0f ? (int)v : (int)v - 1;
+    private static int FastFloor(float v)
+    {
+        int i = (int)v;
+        return v < i ? i - 1 : i;
+    }
 }
