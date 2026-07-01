@@ -20,6 +20,8 @@ internal struct CameraContext
     public float sinkingValue;
     public float shipTakeoffPhase;
     public float shipLandingPhase;
+    public bool inWater;
+    public bool submerged;
 
     public Vector3 velocity;
     public Vector3 forwardRelVelocity;

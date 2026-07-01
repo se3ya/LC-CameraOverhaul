@@ -22,6 +22,8 @@ internal static class CameraPatches
     private static bool _wasInVehicle;
     private static bool _wasInSpecialInteract;
     private static bool _wasInTerminal;
+    private static bool _wasInWater;
+    private static bool _wasSubmerged;
 
     private const float VehicleImpactDecel = 220f;
     private const float MaxDeltaTime = 0.05f;
@@ -84,6 +86,13 @@ internal static class CameraPatches
 
         ShipMotionTracker.GetLocalShipShakePhases(__instance, out float takeoffPhase, out float landingPhase);
 
+        // water: isUnderwater = body in a water volume; submerged = the camera is below its surface.
+        // gate on isUnderwater first since underwaterCollider isn't nulled on exit.
+        bool inWater = __instance.isUnderwater;
+        bool submerged = inWater && __instance.underwaterCollider != null
+                         && __instance.underwaterCollider.bounds.Contains(camT.position);
+        TriggerWaterSplashes(inWater, submerged);
+
         CameraContext ctx = new CameraContext
         {
             isSprinting = __instance.isSprinting,
@@ -104,6 +113,8 @@ internal static class CameraPatches
             sinkingValue = __instance.sinkingValue,
             shipTakeoffPhase = takeoffPhase,
             shipLandingPhase = landingPhase,
+            inWater = inWater,
+            submerged = submerged,
             velocity = vel,
             forwardRelVelocity = new Vector3(Vector3.Dot(vel, right), vel.y, Vector3.Dot(vel, fwd)),
             pitch = ___cameraUp,
@@ -153,8 +164,23 @@ internal static class CameraPatches
         _wasActive = false;
         _hasLastBodyPos = false;
         _hasVehicleSpeed = false;
+        _wasInWater = false;
+        _wasSubmerged = false;
         VehicleTracker.Reset();
         ShockTracker.BeingShocked = false;
+    }
+
+    // one-shot camera dips on entering water (feet) and on going fully under (head).
+    private static void TriggerWaterSplashes(bool inWater, bool submerged)
+    {
+        var g = ConfigManager.Data.general;
+        if (g.enableWaterEffect && g.waterSplashStrength > 0.0)
+        {
+            if (inWater && !_wasInWater) _system.AddWaterSplash(g.waterSplashStrength * 0.5);
+            if (submerged && !_wasSubmerged) _system.AddWaterSplash(g.waterSplashStrength);
+        }
+        _wasInWater = inWater;
+        _wasSubmerged = submerged;
     }
 
     private static bool IsInControlledCamera(PlayerControllerB player)
@@ -308,10 +334,7 @@ internal static class CameraPatches
     }
 
     private static float NormalizeSignedAngle(float angle)
-    {
-        float wrapped = Mathf.Repeat(angle + 180f, 360f) - 180f;
-        return wrapped;
-    }
+        => Mathf.Repeat(angle + 180f, 360f) - 180f;
 
     private static bool IsLookLocked(PlayerControllerB p)
         => (p.quickMenuManager != null && p.quickMenuManager.isMenuOpen)

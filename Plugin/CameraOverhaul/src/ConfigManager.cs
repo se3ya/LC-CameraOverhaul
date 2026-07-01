@@ -33,6 +33,7 @@ internal static class ConfigManager
     private static ConfigEntry<bool> _enableJetpackTurbulence = null!;
     private static ConfigEntry<bool> _enableShockEffect = null!;
     private static ConfigEntry<bool> _enableSinkingTilt = null!;
+    private static ConfigEntry<bool> _enableWaterEffect = null!;
     private static ConfigEntry<bool> _enableHealthCondition = null!;
 
     private static ConfigEntry<float> _turningRollIntensity = null!;
@@ -54,6 +55,9 @@ internal static class ConfigManager
     private static ConfigEntry<float> _jetpackTurbulenceIntensity = null!;
     private static ConfigEntry<float> _shockShakeMultiplier = null!;
     private static ConfigEntry<float> _sinkingTiltStrength = null!;
+    private static ConfigEntry<float> _waterWadeStrength = null!;
+    private static ConfigEntry<float> _waterSubmergedDriftStrength = null!;
+    private static ConfigEntry<float> _waterSplashStrength = null!;
 
     private static ConfigEntry<float> _shakeMaxIntensity = null!;
     private static ConfigEntry<float> _shakeMaxFrequency = null!;
@@ -140,6 +144,8 @@ internal static class ConfigManager
             "Electric jitter while being zapped by a zap gun.");
         _enableSinkingTilt = BindBool(config, toggles, "EnableSinkingTilt", d.general.enableSinkingTilt,
             "Forward pitch tilt as you sink into quicksand.");
+        _enableWaterEffect = BindBool(config, toggles, "EnableWaterEffect", d.general.enableWaterEffect,
+            "Sloshy sway while wading and floaty drift while submerged in water.");
         _enableHealthCondition = BindBool(config, toggles, "EnableHealthCondition", d.general.enableHealthCondition,
             "When health is low, camera effects gradually fade out.");
 
@@ -227,6 +233,14 @@ internal static class ConfigManager
         BindContext(config, "7. Sprinting", _sprint, d.sprinting);
         BindContext(config, "8. Cruiser", _cruiser, d.cruiser);
 
+        const string water = "9. Water";
+        _waterWadeStrength = BindFloat(config, water, "WadeStrength", (float)d.general.waterWadeStrength, 0f, 10f,
+            "Strength of the heavy slosh sway while wading through water.");
+        _waterSubmergedDriftStrength = BindFloat(config, water, "SubmergedDriftStrength", (float)d.general.waterSubmergedDriftStrength, 0f, 15f,
+            "Strength of the slow floaty drift while fully submerged.");
+        _waterSplashStrength = BindFloat(config, water, "SplashStrength", (float)d.general.waterSplashStrength, 0f, 10f,
+            "Downward camera dip when entering water and when your head goes under.");
+
         Sync();
         config.SettingChanged += (_, _) => Sync();
 
@@ -292,6 +306,7 @@ internal static class ConfigManager
         g.enableJetpackTurbulence = _enableJetpackTurbulence.Value;
         g.enableShockEffect = _enableShockEffect.Value;
         g.enableSinkingTilt = _enableSinkingTilt.Value;
+        g.enableWaterEffect = _enableWaterEffect.Value;
         g.enableHealthCondition = _enableHealthCondition.Value;
         g.turningRollIntensity = _turningRollIntensity.Value;
         g.turningRollAccumulation = _turningRollAccumulation.Value;
@@ -311,6 +326,9 @@ internal static class ConfigManager
         g.jetpackTurbulenceIntensity = _jetpackTurbulenceIntensity.Value;
         g.shockShakeMultiplier = _shockShakeMultiplier.Value;
         g.sinkingTiltStrength = _sinkingTiltStrength.Value;
+        g.waterWadeStrength = _waterWadeStrength.Value;
+        g.waterSubmergedDriftStrength = _waterSubmergedDriftStrength.Value;
+        g.waterSplashStrength = _waterSplashStrength.Value;
         g.screenShakesMaxIntensity = _shakeMaxIntensity.Value;
         g.screenShakesMaxFrequency = _shakeMaxFrequency.Value;
         g.screenShakeDecay = _shakeDecay.Value;

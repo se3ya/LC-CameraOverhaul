@@ -23,6 +23,7 @@ internal sealed class ConfigData
         public bool enableJetpackTurbulence = true; // unstable sway while flying a jetpack
         public bool enableShockEffect = true;       // electric jitter while zapped by a zap gun
         public bool enableSinkingTilt = true;       // forward pitch tilt while sinking in quicksand
+        public bool enableWaterEffect = true;       // wade slosh + submerged buoyancy drift in water
         public bool enableHealthCondition = true;      // camera effects scale down when injured
 
         public double turningRollAccumulation = 2.5;        // how quickly fast turning builds up the lean
@@ -44,6 +45,9 @@ internal sealed class ConfigData
         public double jetpackTurbulenceIntensity = 1.5; // turbulence sway strength while flying a jetpack
         public double shockShakeMultiplier = 3.0;    // electric jitter strength while being shocked
         public double sinkingTiltStrength = 12.0;    // degrees of forward pitch at full sink
+        public double waterWadeStrength = 2.0;           // slosh sway strength while wading through water
+        public double waterSubmergedDriftStrength = 5.0; // floaty buoyancy drift strength while submerged
+        public double waterSplashStrength = 5.0;         // downward camera dip when entering / going under water
 
         public double screenShakesMaxIntensity = 2.5;       // screen shake strength multiplies all shakes
         public double screenShakesMaxFrequency = 6.0;       // screen shake speed/harshness
