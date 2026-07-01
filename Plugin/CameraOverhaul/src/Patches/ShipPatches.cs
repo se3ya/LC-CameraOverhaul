@@ -55,7 +55,6 @@ internal static class ShipMotionTracker
         StartOfRound? so = StartOfRound.Instance;
         if (so == null) return;
 
-        // no shake window open -> skip the (potentially collider-iterating) on-ship/catwalk test entirely.
         bool leaving = so.shipIsLeaving;
         bool landingWindow = LandingStartRealtime >= 0f;
         if (!leaving && !landingWindow) return;
@@ -63,18 +62,22 @@ internal static class ShipMotionTracker
         if (!IsPlayerOnShipOrCatwalk(player, so)) return;
 
         float now = Time.realtimeSinceStartup;
-        if (leaving)
-        {
-            float e = now - so.timeWhenShipStartedLeaving;
-            if (e >= 0f && e <= ShipTakeoffDuration) takeoff = e / ShipTakeoffDuration;
-        }
+        if (leaving) takeoff = TakeoffPhase(now, so);
+        if (landingWindow) landing = LandingPhase(now);
+    }
 
-        if (landingWindow)
-        {
-            float e = now - LandingStartRealtime;
-            if (e >= 0f && e <= ShipLandingDuration) landing = e / ShipLandingDuration;
-            else if (e > ShipLandingDuration) LandingStartRealtime = -1f;
-        }
+    private static float TakeoffPhase(float now, StartOfRound so)
+    {
+        float e = now - so.timeWhenShipStartedLeaving;
+        return e >= 0f && e <= ShipTakeoffDuration ? e / ShipTakeoffDuration : -1f;
+    }
+
+    private static float LandingPhase(float now)
+    {
+        float e = now - LandingStartRealtime;
+        if (e >= 0f && e <= ShipLandingDuration) return e / ShipLandingDuration;
+        if (e > ShipLandingDuration) LandingStartRealtime = -1f;
+        return -1f;
     }
 
     private static bool IsPlayerOnShipOrCatwalk(PlayerControllerB player, StartOfRound so)
