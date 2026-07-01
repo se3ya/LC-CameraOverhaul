@@ -1,5 +1,7 @@
 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;">
-  <img src="https://img.shields.io/codefactor/grade/github/se3ya/LC-CameraOverhaul?style=flat&logo=codefactor&logoColor=white&color=83E6FB&cacheSeconds=1200" alt="CodeFactor Grade">
+  <a href="https://www.codefactor.io/repository/github/se3ya/lc-cameraoverhaul">
+    <img src="https://img.shields.io/codefactor/grade/github/se3ya/lc-cameraoverhaul?style=flat&logo=codefactor&logoColor=white&color=83E6FB&cacheSeconds=1200" alt="CodeFactor Grade">
+  </a>
   <img src="https://img.shields.io/thunderstore/dt/seechela/Camera_Overhaul?style=flat&logo=thunderstore&logoColor=white&color=83E6FB&cacheSeconds=1200" alt="Thunderstore Downloads">
   <img src="https://img.shields.io/github/v/release/se3ya/LC-CameraOverhaul?style=flat&logo=github&logoColor=white&color=83E6FB&cacheSeconds=1200" alt="GitHub Release Version">
 </div>
@@ -31,6 +33,7 @@
 - Jetpack turbulence
 - Shock jitter
 - Sinking tilt
+- Water effects
 - *Everything is configurable!*
 
 ---
