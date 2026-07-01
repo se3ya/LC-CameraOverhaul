@@ -9,16 +9,22 @@ namespace CameraOverhaul;
 [BepInDependency(ModGUIDs.ImmersiveVisor, BepInDependency.DependencyFlags.SoftDependency)]
 public class Plugin : BaseUnityPlugin
 {
+    public static Plugin Instance { get; private set; } = null!;
     public static ManualLogSource Log { get; private set; } = null!;
+
+    private readonly Harmony _harmony = new(MyPluginInfo.PLUGIN_GUID);
 
     private void Awake()
     {
-        Log = Logger;
+        Instance = this;
+
+        Log = base.Logger;
 
         Log.LogInfo($"Initializing {MyPluginInfo.PLUGIN_NAME}");
 
         ConfigManager.Initialize(Config);
-        new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll();
+
+        _harmony.PatchAll();
 
         Log.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
     }
