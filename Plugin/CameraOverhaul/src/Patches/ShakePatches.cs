@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace CameraOverhaul;
 
-
 [HarmonyPatch(typeof(Landmine))]
 internal static class ExplosionShakePatch
 {

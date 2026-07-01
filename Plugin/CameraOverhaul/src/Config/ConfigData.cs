@@ -112,7 +112,6 @@ internal sealed class ConfigData
 
     public ConfigData()
     {
-
         sprinting.strafingRollFactor = 10.0;
         sprinting.forwardVelocityPitchFactor = 9.5;
         sprinting.verticalVelocityPitchFactor = 8.0;
