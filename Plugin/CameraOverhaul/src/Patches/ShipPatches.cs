@@ -10,11 +10,14 @@ internal static class ShipMotionTracker
 {
     public static float LandingStartRealtime = -1f;
     private static Collider[] _catwalkColliders = Array.Empty<Collider>();
+    private static Collider? _shipBoundsCollider;
+    private static Transform? _hangarRoot;
+    private static bool _cacheInitialized;
     private static float _nextCatwalkRefreshTime;
 
     private const float ShipTakeoffDuration = 15f;
     private const float ShipLandingDuration = 10f;
-    private const float CatwalkRefreshInterval = 2f;
+    private const float ShipCacheRefreshInterval = 8f;
 
     [HarmonyPostfix]
     [HarmonyPatch("Awake")]
@@ -23,8 +26,21 @@ internal static class ShipMotionTracker
         __instance.StartedLandingShip -= OnStartedLanding;
         __instance.StartedLandingShip += OnStartedLanding;
         LandingStartRealtime = -1f;
+
+        _shipBoundsCollider = null;
+        _hangarRoot = null;
         _catwalkColliders = Array.Empty<Collider>();
+        _cacheInitialized = false;
         _nextCatwalkRefreshTime = 0f;
+
+        WarmShipReferences(__instance);
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPatch("SceneManager_OnLoadComplete1")]
+    private static void SceneManager_OnLoadComplete1Postfix(StartOfRound __instance)
+    {
+        WarmShipReferences(__instance);
     }
 
     private static void OnStartedLanding() => LandingStartRealtime = Time.realtimeSinceStartup;
@@ -60,11 +76,12 @@ internal static class ShipMotionTracker
         if (player.isInHangarShipRoom)
             return true;
 
+        EnsureShipReferences(so);
+
         Vector3 probe = player.transform.position + Vector3.up * 0.25f;
-        if (so.shipBounds != null && so.shipBounds.bounds.Contains(probe))
+        if (_shipBoundsCollider != null && _shipBoundsCollider.bounds.Contains(probe))
             return true;
 
-        RefreshCatwalkCollidersIfNeeded(so);
         for (int i = 0; i < _catwalkColliders.Length; i++)
         {
             Collider c = _catwalkColliders[i];
@@ -78,27 +95,37 @@ internal static class ShipMotionTracker
         return false;
     }
 
-    private static void RefreshCatwalkCollidersIfNeeded(StartOfRound so)
+    private static void WarmShipReferences(StartOfRound so)
+    {
+        _nextCatwalkRefreshTime = Time.realtimeSinceStartup + ShipCacheRefreshInterval;
+        RebuildShipReferences(so);
+    }
+
+    private static void EnsureShipReferences(StartOfRound so)
     {
         float now = Time.realtimeSinceStartup;
-        if (_catwalkColliders.Length > 0 && now < _nextCatwalkRefreshTime)
+        if (_cacheInitialized && now < _nextCatwalkRefreshTime)
             return;
 
-        _nextCatwalkRefreshTime = now + CatwalkRefreshInterval;
+        _nextCatwalkRefreshTime = now + ShipCacheRefreshInterval;
+        RebuildShipReferences(so);
+    }
 
-        Transform? hangarRoot = so.shipBounds != null
-            ? so.shipBounds.transform.root
-            : GameObject.Find("HangarShip")?.transform
-              ?? GameObject.Find("Environment/HangarShip")?.transform
-              ?? GameObject.Find("/Environment/HangarShip")?.transform;
+    private static void RebuildShipReferences(StartOfRound so)
+    {
+        _shipBoundsCollider = so.shipBounds;
+        _hangarRoot = _shipBoundsCollider != null
+            ? _shipBoundsCollider.transform.root
+            : FindHangarRoot();
 
-        if (hangarRoot == null)
+        if (_hangarRoot == null)
         {
             _catwalkColliders = Array.Empty<Collider>();
+            _cacheInitialized = true;
             return;
         }
 
-        Collider[] allColliders = hangarRoot.GetComponentsInChildren<Collider>(includeInactive: true);
+        Collider[] allColliders = _hangarRoot.GetComponentsInChildren<Collider>(includeInactive: true);
         Collider[] found = new Collider[allColliders.Length];
         int count = 0;
 
@@ -106,19 +133,26 @@ internal static class ShipMotionTracker
         {
             Collider c = allColliders[i];
             if (c == null || c.isTrigger) continue;
-            if (!HasCatwalkInHierarchy(c.transform, hangarRoot)) continue;
+            if (!HasCatwalkInHierarchy(c.transform, _hangarRoot)) continue;
             found[count++] = c;
         }
 
         if (count == 0)
         {
             _catwalkColliders = Array.Empty<Collider>();
+            _cacheInitialized = true;
             return;
         }
 
         _catwalkColliders = new Collider[count];
         Array.Copy(found, _catwalkColliders, count);
+        _cacheInitialized = true;
     }
+
+    private static Transform? FindHangarRoot()
+        => GameObject.Find("HangarShip")?.transform
+           ?? GameObject.Find("Environment/HangarShip")?.transform
+           ?? GameObject.Find("/Environment/HangarShip")?.transform;
 
     private static bool HasCatwalkInHierarchy(Transform t, Transform hangarRoot)
     {
