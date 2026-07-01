@@ -25,6 +25,9 @@ internal static class CameraPatches
 
     private const float VehicleImpactDecel = 220f;
     private const float MaxDeltaTime = 0.05f;
+    private const float MaxEffectPitch = 85f;
+    private const float MaxEffectYaw = 60f;
+    private const float MaxEffectRoll = 70f;
 
     [HarmonyPostfix]
     [HarmonyPatch("LateUpdate")]
@@ -48,6 +51,7 @@ internal static class CameraPatches
             _wasActive = false;
             _hasLastBodyPos = false;
             _hasVehicleSpeed = false;
+            VehicleTracker.Reset();
             ShockTracker.BeingShocked = false;
             return;
         }
@@ -90,6 +94,13 @@ internal static class CameraPatches
         float dt = Mathf.Min(Time.deltaTime, MaxDeltaTime);
         Vector3 vel = ReadVelocity(__instance, body, controller, inControlledCamera, dt) * (float)Constants.VelocityScale;
 
+        float effectiveDrunkness = Mathf.Clamp01(__instance.drunkness);
+        if (!ConfigManager.Data.general.enableDrunknessEffect && effectiveDrunkness > 0f)
+        {
+            vel = RemoveVanillaDrunkSpeedScaling(vel, effectiveDrunkness);
+            effectiveDrunkness = 0f;
+        }
+
         Vector3 fwd = body.forward; fwd.y = 0f;
         fwd = fwd.sqrMagnitude > 1e-6f ? fwd.normalized : Vector3.forward;
         Vector3 right = body.right; right.y = 0f;
@@ -109,7 +120,7 @@ internal static class CameraPatches
             isUsingJetpack = __instance.jetpackControls,
             isBeingShocked = ShockTracker.BeingShocked,
             sprintMeter = __instance.sprintMeter,
-            drunkness = __instance.drunkness,
+            drunkness = effectiveDrunkness,
             insanity = __instance.maxInsanityLevel > 0f
                 ? __instance.insanityLevel / __instance.maxInsanityLevel
                 : 0f,
@@ -137,6 +148,8 @@ internal static class CameraPatches
             off = Vector3.zero;
         }
 
+        ClampEffectOffset(ref off, cur.x);
+
         camT.localEulerAngles = new Vector3(
             cur.x + off.x,
             cur.y - _lastYawOffset + off.y,
@@ -150,12 +163,14 @@ internal static class CameraPatches
     private static Vector3 ReadVelocity(PlayerControllerB p, Transform body, CharacterController controller,
         bool inControlledCamera, float dt)
     {
+        float dtSafe = Mathf.Max(dt, 1e-4f);
+
         if (p.inVehicleAnimation)
         {
-            VehicleController? vehicle = VehicleTracker.ActiveVehicle;
+            VehicleController? vehicle = VehicleTracker.ResolveActive(p);
             if (vehicle == null)
             {
-                Vector3 fallback = _hasLastBodyPos ? (body.position - _lastBodyPos) / dt : Vector3.zero;
+                Vector3 fallback = _hasLastBodyPos ? (body.position - _lastBodyPos) / dtSafe : Vector3.zero;
                 _hasVehicleSpeed = false;
                 _lastBodyPos = body.position;
                 _hasLastBodyPos = true;
@@ -167,7 +182,7 @@ internal static class CameraPatches
 
             if (_hasVehicleSpeed)
             {
-                float decel = (_vehicleSpeed - instSpeed) / dt;
+                float decel = (_vehicleSpeed - instSpeed) / dtSafe;
                 if (decel > VehicleImpactDecel && _vehicleSpeed > 4f)
                 {
                     var g = ConfigManager.Data.general;
@@ -186,7 +201,19 @@ internal static class CameraPatches
 
         _hasLastBodyPos = false;
         _hasVehicleSpeed = false;
+        VehicleTracker.ClearCachedActiveIf(p);
         return inControlledCamera ? Vector3.zero : controller.velocity;
+    }
+
+    private static Vector3 RemoveVanillaDrunkSpeedScaling(Vector3 velocity, float drunkness)
+    {
+        StartOfRound? so = StartOfRound.Instance;
+        if (so == null || so.drunknessSpeedEffect == null)
+            return velocity;
+
+        float speedFactor = so.drunknessSpeedEffect.Evaluate(drunkness) / 5f + 1f;
+        speedFactor = Mathf.Max(speedFactor, 0.25f);
+        return velocity / speedFactor;
     }
 
     [HarmonyPostfix]
@@ -236,6 +263,35 @@ internal static class CameraPatches
         camT.localEulerAngles = new Vector3(cur.x, cur.y - _lastYawOffset, cur.z - _lastRollOffset);
         _lastYawOffset = 0f;
         _lastRollOffset = 0f;
+    }
+
+    private static void ClampEffectOffset(ref Vector3 off, float basePitchEuler)
+    {
+        off.y = Mathf.Clamp(off.y, -MaxEffectYaw, MaxEffectYaw);
+        off.z = Mathf.Clamp(off.z, -MaxEffectRoll, MaxEffectRoll);
+
+        float basePitch = NormalizeSignedAngle(basePitchEuler);
+        if (basePitch > MaxEffectPitch)
+        {
+            off.x = Mathf.Min(off.x, 0f);
+            return;
+        }
+
+        if (basePitch < -MaxEffectPitch)
+        {
+            off.x = Mathf.Max(off.x, 0f);
+            return;
+        }
+
+        float minPitchDelta = -MaxEffectPitch - basePitch;
+        float maxPitchDelta = MaxEffectPitch - basePitch;
+        off.x = Mathf.Clamp(off.x, minPitchDelta, maxPitchDelta);
+    }
+
+    private static float NormalizeSignedAngle(float angle)
+    {
+        float wrapped = Mathf.Repeat(angle + 180f, 360f) - 180f;
+        return wrapped;
     }
 
     private static bool IsLookLocked(PlayerControllerB p)

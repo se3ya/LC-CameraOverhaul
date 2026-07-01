@@ -1,30 +1,73 @@
 using GameNetcodeStuff;
-using HarmonyLib;
+using UnityEngine;
 
 namespace CameraOverhaul;
 
-[HarmonyPatch(typeof(VehicleController))]
 internal static class VehicleTracker
 {
     private static VehicleController? _active;
+    private static float _nextSearchRealtime;
 
-    public static VehicleController? ActiveVehicle => _active;
+    private const float VehicleSearchInterval = 0.2f;
 
-    [HarmonyPostfix]
-    [HarmonyPatch(nameof(VehicleController.Update))]
-    private static void UpdatePostfix(VehicleController __instance)
+    public static VehicleController? ResolveActive(PlayerControllerB? localPlayer)
     {
-        PlayerControllerB? lp = StartOfRound.Instance?.localPlayerController;
-        if (lp == null) return;
-
-        bool inThis = __instance.currentDriver == lp
-                   || __instance.currentPassenger == lp
-                   || __instance.localPlayerInControl
-                   || __instance.localPlayerInPassengerSeat;
-
-        if (inThis)
-            _active = __instance;
-        else if (_active == __instance)
+        if (localPlayer == null)
+        {
             _active = null;
+            return null;
+        }
+
+        if (IsPlayerInVehicle(localPlayer, _active))
+            return _active;
+
+        float now = Time.realtimeSinceStartup;
+        if (now < _nextSearchRealtime)
+            return null;
+
+        _nextSearchRealtime = now + VehicleSearchInterval;
+
+        VehicleController[] vehicles = Object.FindObjectsOfType<VehicleController>();
+        for (int i = 0; i < vehicles.Length; i++)
+        {
+            VehicleController vehicle = vehicles[i];
+            if (!IsPlayerInVehicle(localPlayer, vehicle))
+                continue;
+
+            _active = vehicle;
+            return _active;
+        }
+
+        _active = null;
+        return null;
+    }
+
+    public static void ClearCachedActiveIf(PlayerControllerB? localPlayer)
+    {
+        if (localPlayer == null)
+        {
+            _active = null;
+            return;
+        }
+
+        if (!IsPlayerInVehicle(localPlayer, _active))
+            _active = null;
+    }
+
+    public static void Reset()
+    {
+        _active = null;
+        _nextSearchRealtime = 0f;
+    }
+
+    private static bool IsPlayerInVehicle(PlayerControllerB localPlayer, VehicleController? vehicle)
+    {
+        if (vehicle == null)
+            return false;
+
+        return vehicle.currentDriver == localPlayer
+            || vehicle.currentPassenger == localPlayer
+            || vehicle.localPlayerInControl
+            || vehicle.localPlayerInPassengerSeat;
     }
 }
