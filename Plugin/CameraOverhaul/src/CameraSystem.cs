@@ -50,10 +50,105 @@ internal sealed class CameraSystem
     private double _criticalSeverity;
     private double _jetpackSeverity;
     private double _shockSeverity;
+    private double _drunkSeverity;
+    private double _drunkRoll;
+    private double _drunkPitch;
+    private double _drunkYaw;
     private Vector3 _punch;
     private Vector3 _punchVel;
     private bool _msInit;
     private double _prevYawNorm, _prevPitchNorm, _contYaw, _contPitch, _smYaw, _smPitch;
+
+    private delegate bool EffectEnabled(in CameraContext context, ConfigData cfg);
+    private delegate void EffectRun(in CameraContext context, double dt, ConfigData cfg);
+
+    private readonly struct EffectModule
+    {
+        public readonly EffectEnabled Enabled;
+        public readonly EffectRun Run;
+
+        public EffectModule(EffectEnabled enabled, EffectRun run)
+        {
+            Enabled = enabled;
+            Run = run;
+        }
+    }
+
+    private readonly EffectModule[] _effectPipeline;
+
+    public CameraSystem()
+    {
+        _effectPipeline =
+        [
+            new EffectModule(
+                (in CameraContext _, ConfigData _) => true,
+                (in CameraContext context, double dt, ConfigData cfg) => CameraSmoothingOffset(in context, dt)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableSway,
+                (in CameraContext context, double dt, ConfigData cfg) => IdleSwayOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableExhaustionEffect,
+                (in CameraContext context, double dt, ConfigData cfg) => ExhaustionOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableInsanityEffect,
+                (in CameraContext context, double dt, ConfigData cfg) => InsanityOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableTinnitusEffect,
+                (in CameraContext _, double dt, ConfigData cfg) => TinnitusOffset(dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableDrunknessEffect,
+                (in CameraContext context, double dt, ConfigData cfg) => DrunknessOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableCriticalInjuryEffect,
+                (in CameraContext context, double dt, ConfigData cfg) => CriticalInjuryOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enablePoisonEffect,
+                (in CameraContext context, double dt, ConfigData cfg) => PoisonOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableJetpackTurbulence,
+                (in CameraContext context, double dt, ConfigData cfg) => JetpackTurbulenceOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableShockEffect,
+                (in CameraContext context, double dt, ConfigData cfg) => ShockOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableSinkingTilt,
+                (in CameraContext context, double _, ConfigData cfg) => SinkingTiltOffset(in context, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData _) => true,
+                (in CameraContext context, double dt, ConfigData cfg) => ShipMotionOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enablePitch,
+                (in CameraContext context, double dt, ConfigData cfg) => VerticalVelocityPitchOffset(in context, dt, cfg.general.maxVelocityPitch)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enablePitch,
+                (in CameraContext context, double dt, ConfigData cfg) => ForwardVelocityPitchOffset(in context, dt, cfg.general.maxVelocityPitch)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData _) => true,
+                (in CameraContext _, double dt, ConfigData _) => PunchOffset(dt)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableRoll,
+                (in CameraContext context, double dt, ConfigData cfg) => TurningRollOffset(in context, dt, cfg)),
+
+            new EffectModule(
+                (in CameraContext _, ConfigData cfg) => cfg.general.enableRoll,
+                (in CameraContext context, double dt, ConfigData cfg) => StrafingRollOffset(in context, dt, cfg.general.maxVelocityRoll)),
+        ];
+    }
 
     private static double Now => Time.timeAsDouble;
 
@@ -87,6 +182,10 @@ internal sealed class CameraSystem
         _criticalSeverity = 0;
         _jetpackSeverity = 0;
         _shockSeverity = 0;
+        _drunkSeverity = 0;
+        _drunkRoll = 0;
+        _drunkPitch = 0;
+        _drunkYaw = 0;
         _punch = Vector3.zero;
         _punchVel = Vector3.zero;
         _msInit = false;
@@ -136,29 +235,7 @@ internal sealed class CameraSystem
             || context.isInspectingItem)
             _lastActionTime = Now;
 
-        CameraSmoothingOffset(in context, dt);
-        if (cfg.general.enableSway) IdleSwayOffset(in context, dt, cfg);
-        ExhaustionOffset(in context, dt, cfg);
-        InsanityOffset(in context, dt, cfg);
-        TinnitusOffset(dt, cfg);
-        DrunknessOffset(in context, dt, cfg);
-        CriticalInjuryOffset(in context, dt, cfg);
-        PoisonOffset(in context, dt, cfg);
-        JetpackTurbulenceOffset(in context, dt, cfg);
-        ShockOffset(in context, dt, cfg);
-        SinkingTiltOffset(in context, cfg);
-        ShipMotionOffset(in context, dt, cfg);
-        if (cfg.general.enablePitch)
-        {
-            VerticalVelocityPitchOffset(in context, dt);
-            ForwardVelocityPitchOffset(in context, dt);
-        }
-        PunchOffset(dt);
-        if (cfg.general.enableRoll)
-        {
-            TurningRollOffset(in context, dt, cfg);
-            StrafingRollOffset(in context, dt);
-        }
+        RunEffectPipeline(in context, dt, cfg);
 
         _prevPitch = context.pitch;
         _prevYaw = context.yaw;
@@ -176,6 +253,18 @@ internal sealed class CameraSystem
             ? MathUtils.DampStep(cfg.general.contextTransitionSmoothing, dt)
             : 1.0;
         _ctxCfg.Lerp(_ctxCfg, target, step);
+    }
+
+    private void RunEffectPipeline(in CameraContext context, double dt, ConfigData cfg)
+    {
+        for (int i = 0; i < _effectPipeline.Length; i++)
+        {
+            ref readonly EffectModule module = ref _effectPipeline[i];
+            if (!module.Enabled(in context, cfg))
+                continue;
+
+            module.Run(in context, dt, cfg);
+        }
     }
 
     private const double ACTION_VELOCITY_EPS_SQ = 0.0004;
@@ -197,10 +286,7 @@ internal sealed class CameraSystem
     private const double BASE_VERTICAL_PITCH_SMOOTHING = 0.00004;
     private const double VERTICAL_PITCH_THRESHOLD = 0.4;
 
-    private static double MaxVelocityPitch => ConfigManager.Data.general.maxVelocityPitch;
-    private static double MaxVelocityRoll => ConfigManager.Data.general.maxVelocityRoll;
-
-    private void VerticalVelocityPitchOffset(in CameraContext context, double dt)
+    private void VerticalVelocityPitchOffset(in CameraContext context, double dt, double maxVelocityPitch)
     {
         double multiplier = _ctxCfg!.verticalVelocityPitchFactor;
         double smoothing = BASE_VERTICAL_PITCH_SMOOTHING * _ctxCfg.verticalVelocitySmoothingFactor;
@@ -208,7 +294,7 @@ internal sealed class CameraSystem
         double target = context.isClimbing ? 0.0 : context.velocity.y * multiplier;
 
         if (Math.Abs(target) < VERTICAL_PITCH_THRESHOLD) target = 0;
-        target = MathUtils.Clamp(target, -MaxVelocityPitch, MaxVelocityPitch);
+        target = MathUtils.Clamp(target, -maxVelocityPitch, maxVelocityPitch);
         double current = MathUtils.Damp(_prevVerticalPitch, target, smoothing, dt);
 
         _offsetEuler.x += (float)current;
@@ -217,13 +303,13 @@ internal sealed class CameraSystem
 
     private const double BASE_FORWARD_PITCH_SMOOTHING = 0.008;
 
-    private void ForwardVelocityPitchOffset(in CameraContext context, double dt)
+    private void ForwardVelocityPitchOffset(in CameraContext context, double dt, double maxVelocityPitch)
     {
         double multiplier = _ctxCfg!.forwardVelocityPitchFactor;
         double smoothing = BASE_FORWARD_PITCH_SMOOTHING * _ctxCfg.horizontalVelocitySmoothingFactor;
 
         double target = context.isClimbing ? 0.0 : context.forwardRelVelocity.z * multiplier;
-        target = MathUtils.Clamp(target, -MaxVelocityPitch, MaxVelocityPitch);
+        target = MathUtils.Clamp(target, -maxVelocityPitch, maxVelocityPitch);
         double current = MathUtils.Damp(_prevForwardPitch, target, smoothing, dt);
 
         _offsetEuler.x += (float)current;
@@ -261,13 +347,13 @@ internal sealed class CameraSystem
 
     private const double BASE_STRAFING_ROLL_SMOOTHING = 0.008;
 
-    private void StrafingRollOffset(in CameraContext context, double dt)
+    private void StrafingRollOffset(in CameraContext context, double dt, double maxVelocityRoll)
     {
         double multiplier = _ctxCfg!.strafingRollFactor;
         double smoothing = BASE_STRAFING_ROLL_SMOOTHING * _ctxCfg.horizontalVelocitySmoothingFactor;
 
         double target = -context.forwardRelVelocity.x * multiplier;
-        target = MathUtils.Clamp(target, -MaxVelocityRoll, MaxVelocityRoll);
+        target = MathUtils.Clamp(target, -maxVelocityRoll, maxVelocityRoll);
         double offset = MathUtils.Damp(_prevStrafingRoll, target, smoothing, dt);
 
         _offsetEuler.z += (float)offset;
@@ -357,15 +443,49 @@ internal sealed class CameraSystem
         _offsetEuler.z += (float)(Noise.Sample(TinnitusNoise, t * freq * 1.1, 1000.0) * intensity * 0.5);
     }
 
-    // slow floating roll
+    private const double DRUNK_SEVERITY_SMOOTHING = 0.06;
+    private const double DRUNK_OFFSET_SMOOTHING = 0.025;
+    private const double DRUNK_BASE_ROLL_DEG = 6.5;
+    private const double DRUNK_BASE_PITCH_DEG = 3.0;
+    private const double DRUNK_BASE_YAW_DEG = 2.2;
+    private const double DRUNK_INTENSITY_NORMALIZER = 6.0;
+    private const double DRUNK_NOISE_SPEED_MIN = 0.18;
+    private const double DRUNK_NOISE_SPEED_MAX = 0.42;
+
     private void DrunknessOffset(in CameraContext context, double dt, ConfigData cfg)
     {
-        if (!cfg.general.enableDrunknessEffect || context.drunkness <= 0.0) return;
+        double targetSeverity = MathUtils.Clamp01(context.drunkness);
+        _drunkSeverity = MathUtils.Damp(_drunkSeverity, targetSeverity, DRUNK_SEVERITY_SMOOTHING, dt);
 
-        _drunkTime += dt;
-        double intensity = context.drunkness * cfg.general.drunknessSwayMultiplier;
-        _offsetEuler.z += (float)(Noise.Sample(DrunknessNoise, _drunkTime * 0.5, 3000.0) * intensity);
-        _offsetEuler.x += (float)(Noise.Sample(DrunknessNoise, _drunkTime * 0.4, 4000.0) * intensity * 0.5);
+        if (_drunkSeverity <= 0.001)
+        {
+            _drunkPitch = MathUtils.Damp(_drunkPitch, 0.0, DRUNK_OFFSET_SMOOTHING, dt);
+            _drunkYaw = MathUtils.Damp(_drunkYaw, 0.0, DRUNK_OFFSET_SMOOTHING, dt);
+            _drunkRoll = MathUtils.Damp(_drunkRoll, 0.0, DRUNK_OFFSET_SMOOTHING, dt);
+            return;
+        }
+
+        double severityCurve = _drunkSeverity * _drunkSeverity * (3.0 - 2.0 * _drunkSeverity);
+        double intensityScale = MathUtils.Clamp(cfg.general.drunknessSwayMultiplier / DRUNK_INTENSITY_NORMALIZER, 0.25, 2.0);
+
+        double speed = MathUtils.Lerp(DRUNK_NOISE_SPEED_MIN, DRUNK_NOISE_SPEED_MAX, severityCurve);
+        _drunkTime += dt * speed;
+
+        double rollLimit = DRUNK_BASE_ROLL_DEG * intensityScale;
+        double pitchLimit = DRUNK_BASE_PITCH_DEG * intensityScale;
+        double yawLimit = DRUNK_BASE_YAW_DEG * intensityScale;
+
+        double rollTarget = Noise.Sample(DrunknessNoise, _drunkTime * 0.84, 3000.0) * rollLimit * severityCurve;
+        double pitchTarget = Noise.Sample(DrunknessNoise, _drunkTime * 0.58, 4000.0) * pitchLimit * severityCurve;
+        double yawTarget = Noise.Sample(DrunknessNoise, _drunkTime * 0.63, 5000.0) * yawLimit * severityCurve;
+
+        _drunkRoll = MathUtils.Clamp(MathUtils.Damp(_drunkRoll, rollTarget, DRUNK_OFFSET_SMOOTHING, dt), -rollLimit, rollLimit);
+        _drunkPitch = MathUtils.Clamp(MathUtils.Damp(_drunkPitch, pitchTarget, DRUNK_OFFSET_SMOOTHING, dt), -pitchLimit, pitchLimit);
+        _drunkYaw = MathUtils.Clamp(MathUtils.Damp(_drunkYaw, yawTarget, DRUNK_OFFSET_SMOOTHING, dt), -yawLimit, yawLimit);
+
+        _impairOffset.z += (float)_drunkRoll;
+        _impairOffset.x += (float)_drunkPitch;
+        _impairOffset.y += (float)_drunkYaw;
     }
 
     // heavy, slow, pulsing sway
