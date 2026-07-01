@@ -3,9 +3,6 @@ using HarmonyLib;
 
 namespace CameraOverhaul;
 
-// Tracks which vehicle the local player is in. A postfix on VehicleController.Update keeps the cached
-// reference current for free (Update runs before the player's LateUpdate), so the camera driver never
-// has to scan the scene for it.
 [HarmonyPatch(typeof(VehicleController))]
 internal static class VehicleTracker
 {
