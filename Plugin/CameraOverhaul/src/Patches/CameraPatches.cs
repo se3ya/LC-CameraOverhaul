@@ -25,6 +25,7 @@ internal static class CameraPatches
     private static bool _wasInWater;
     private static bool _wasSubmerged;
 
+    private const double VelocityScale = 0.05;
     private const float VehicleImpactDecel = 220f;
     private const float MaxDeltaTime = 0.05f;
     private const float MaxEffectPitch = 85f;
@@ -70,7 +71,7 @@ internal static class CameraPatches
         Vector3 cur = camT.localEulerAngles;
 
         float dt = Mathf.Min(Time.deltaTime, MaxDeltaTime);
-        Vector3 vel = ReadVelocity(__instance, body, controller, inControlledCamera, dt) * (float)Constants.VelocityScale;
+        Vector3 vel = ReadVelocity(__instance, body, controller, inControlledCamera, dt) * (float)VelocityScale;
 
         float effectiveDrunkness = Mathf.Clamp01(__instance.drunkness);
         if (!ConfigManager.Data.general.enableDrunknessEffect && effectiveDrunkness > 0f)
