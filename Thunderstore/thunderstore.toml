@@ -15,7 +15,7 @@ containsNswContent = false
 BepInEx-BepInExPack = "5.4.2305"
 
 [build]
-icon = "./icon.gif"
+icon = "./icon.png"
 readme = "./README.md"
 outdir = "./build"
 
