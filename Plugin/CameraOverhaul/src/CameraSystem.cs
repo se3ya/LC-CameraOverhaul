@@ -146,16 +146,30 @@ internal sealed class CameraSystem
         _smoothing = Vector3.zero;
 
         ScreenShakes.OnCameraUpdate(dt);
+        UpdateActionTime(in context);
 
+        CameraSmoothingOffset(in context, dt);
+        if (g.enableSway) IdleSwayOffset(dt, cfg);
+        ApplyStatusEffects(in context, dt, cfg);
+        ApplyMotionEffects(in context, dt, cfg);
+
+        _prevPitch = context.pitch;
+        _prevYaw = context.yaw;
+    }
+
+    private void UpdateActionTime(in CameraContext context)
+    {
         double yawDelta = Math.Abs(MathUtils.UnwrapStep(context.yaw - _prevYaw));
         double pitchDelta = Math.Abs(context.pitch - _prevPitch);
         if (context.velocity.sqrMagnitude > ACTION_VELOCITY_EPS_SQ
             || yawDelta > ACTION_LOOK_EPS || pitchDelta > ACTION_LOOK_EPS
             || context.isInspectingItem)
             _lastActionTime = Now;
+    }
 
-        CameraSmoothingOffset(in context, dt);
-        if (g.enableSway) IdleSwayOffset(dt, cfg);
+    private void ApplyStatusEffects(in CameraContext context, double dt, ConfigData cfg)
+    {
+        var g = cfg.general;
         if (g.enableExhaustionEffect) ExhaustionOffset(in context, dt, cfg);
         if (g.enableInsanityEffect) InsanityOffset(in context, dt, cfg);
         if (g.enableTinnitusEffect) TinnitusOffset(dt, cfg);
@@ -166,6 +180,11 @@ internal sealed class CameraSystem
         if (g.enableShockEffect) ShockOffset(in context, dt, cfg);
         if (g.enableSinkingTilt) SinkingTiltOffset(in context, cfg);
         if (g.enableWaterEffect) WaterOffset(in context, dt, cfg);
+    }
+
+    private void ApplyMotionEffects(in CameraContext context, double dt, ConfigData cfg)
+    {
+        var g = cfg.general;
         ShipMotionOffset(in context, dt, cfg);
         if (g.enablePitch)
         {
@@ -178,9 +197,6 @@ internal sealed class CameraSystem
             TurningRollOffset(in context, dt, cfg);
             StrafingRollOffset(in context, dt, g.maxVelocityRoll);
         }
-
-        _prevPitch = context.pitch;
-        _prevYaw = context.yaw;
     }
 
     private void UpdateContext(in CameraContext context, double dt, ConfigData cfg)
