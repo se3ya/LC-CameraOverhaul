@@ -152,7 +152,7 @@ internal sealed class CameraSystem
 
     private static double Now => Time.timeAsDouble;
 
-    public Vector3 OffsetEuler => _offsetEuler * _master + _impairOffset * _masterBase + _smoothing + ScreenShakes.EulerOffset;
+    public Vector3 OffsetEuler => (_offsetEuler * _master) + (_impairOffset * _masterBase) + _smoothing + ScreenShakes.EulerOffset;
 
     public void Reset()
     {
@@ -277,7 +277,7 @@ internal sealed class CameraSystem
     private void PunchOffset(double dt)
     {
         float fdt = (float)dt;
-        _punchVel += (-PunchStiffness * _punch - PunchDamping * _punchVel) * fdt;
+        _punchVel += ((-PunchStiffness * _punch) - (PunchDamping * _punchVel)) * fdt;
         _punch += _punchVel * fdt;
         _punch = Vector3.ClampMagnitude(_punch, MaxPunch);
         _offsetEuler += _punch;
@@ -331,7 +331,7 @@ internal sealed class CameraSystem
 
         _turningRollTarget = MathUtils.Damp(_turningRollTarget, 0, decaySmoothing, dt);
 
-        _turningRollTarget = MathUtils.Clamp(_turningRollTarget + yawDelta * accumulation, -1.0, 1.0);
+        _turningRollTarget = MathUtils.Clamp(_turningRollTarget + (yawDelta * accumulation), -1.0, 1.0);
 
         double roll = MathUtils.Clamp01(TurningEasing(Math.Abs(_turningRollTarget))) * intensity * Math.Sign(_turningRollTarget);
         _offsetEuler.z += (float)roll;
@@ -341,8 +341,8 @@ internal sealed class CameraSystem
     private static double TurningEasing(double x)
     {
         if (x < 0.5) return 4.0 * x * x * x;
-        double inverseVal = -2.0 * x + 2.0;
-        return 1.0 - (inverseVal * inverseVal * inverseVal) / 2.0;
+        double inverseVal = (-2.0 * x) + 2.0;
+        return 1.0 - ((inverseVal * inverseVal * inverseVal) / 2.0);
     }
 
     private const double BASE_STRAFING_ROLL_SMOOTHING = 0.008;
@@ -422,7 +422,7 @@ internal sealed class CameraSystem
         float panic = (float)MathUtils.Clamp01((context.insanity - INSANITY_THRESHOLD) / (1.0 - INSANITY_THRESHOLD));
         if (panic <= 0f) return;
 
-        _insanityTime += dt * (1.0 + panic * 1.25);
+        _insanityTime += dt * (1.0 + (panic * 1.25));
         double intensity = cfg.general.insanitySwayMultiplier * panic * 0.4;
         _offsetEuler.x += (float)(Noise.Sample(InsanityNoise, _insanityTime, 7700.0) * intensity);
         _offsetEuler.y += (float)(Noise.Sample(InsanityNoise, _insanityTime * 1.2, 8800.0) * intensity * 0.6);
@@ -465,7 +465,7 @@ internal sealed class CameraSystem
             return;
         }
 
-        double severityCurve = _drunkSeverity * _drunkSeverity * (3.0 - 2.0 * _drunkSeverity);
+        double severityCurve = _drunkSeverity * _drunkSeverity * (3.0 - (2.0 * _drunkSeverity));
         double intensityScale = MathUtils.Clamp(cfg.general.drunknessSwayMultiplier / DRUNK_INTENSITY_NORMALIZER, 0.25, 2.0);
 
         double speed = MathUtils.Lerp(DRUNK_NOISE_SPEED_MIN, DRUNK_NOISE_SPEED_MAX, severityCurve);
@@ -499,7 +499,7 @@ internal sealed class CameraSystem
 
         _criticalTime += dt * 0.35;
         // slow labored-breathing throb so the heavy sway swells and settles
-        double pulse = 0.75 + 0.25 * Math.Sin(Now * 2.4);
+        double pulse = 0.75 + (0.25 * Math.Sin(Now * 2.4));
         double intensity = cfg.general.criticalInjurySwayMultiplier * _criticalSeverity * pulse;
         _impairOffset.x += (float)(Noise.Sample(CriticalNoise, _criticalTime, 9100.0) * intensity);
         _impairOffset.y += (float)(Noise.Sample(CriticalNoise, _criticalTime * 1.1, 9200.0) * intensity * 0.8);
