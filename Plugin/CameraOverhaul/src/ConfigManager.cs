@@ -10,8 +10,7 @@ internal static class ConfigManager
     private static readonly ConfigData _data = new();
     public static ConfigData Data => _data;
 
-    private static readonly List<ConfigEntry<float>> _floats = new();
-    private static readonly List<ConfigEntry<bool>> _bools = new();
+    private static readonly List<ConfigEntryBase> _entries = new();
 
     private static ConfigEntry<float> _masterStrength = null!;
     private static ConfigEntry<float> _contextTransitionSmoothing = null!;
@@ -92,6 +91,8 @@ internal static class ConfigManager
 
     internal static void Initialize(ConfigFile config)
     {
+        _entries.Clear();
+
         config.SaveOnConfigSet = false;
 
         var d = new ConfigData();
@@ -122,7 +123,7 @@ internal static class ConfigManager
         _enableMeleeWeaponShake = BindBool(config, toggles, "EnableMeleeWeaponShake", d.general.enableMeleeWeaponShake,
             "Rattle and upward punch when you swing a melee weapon.");
         _enableTinnitusEffect = BindBool(config, toggles, "EnableTinnitusEffect", d.general.enableTinnitusEffect,
-            "Increases camera sway heavily while having tinnitus.");
+            "Increases camera sway heavily while having tinnitues.");
         _enableExhaustionEffect = BindBool(config, toggles, "EnableExhaustionEffect", d.general.enableExhaustionEffect,
             "Heavy breathing/sway when you are completely out of stamina.");
         _enableInsanityEffect = BindBool(config, toggles, "EnableInsanityEffect", d.general.enableInsanityEffect,
@@ -130,13 +131,13 @@ internal static class ConfigManager
         _enableDrunknessEffect = BindBool(config, toggles, "EnableDrunknessEffect", d.general.enableDrunknessEffect,
             "Smooth floating camera drift when intoxicated.");
         _enableCriticalInjuryEffect = BindBool(config, toggles, "EnableCriticalInjuryEffect", d.general.enableCriticalInjuryEffect,
-            "Heavy, pulsing near-death sway while critically injured.");
+            "Pulsing near death sway while critically injured.");
         _enablePoisonEffect = BindBool(config, toggles, "EnablePoisonEffect", d.general.enablePoisonEffect,
-            "Jittery, erratic sway while poisoned.");
+            "Jittery sway while poisoned.");
         _enableJetpackTurbulence = BindBool(config, toggles, "EnableJetpackTurbulence", d.general.enableJetpackTurbulence,
-            "Unstable turbulence sway while flying a jetpack.");
+            "Turbulence sway while flying a jetpack.");
         _enableShockEffect = BindBool(config, toggles, "EnableShockEffect", d.general.enableShockEffect,
-            "Electric jitter while being zapped by a shock/zap gun.");
+            "Electric jitter while being zapped by a zap gun.");
         _enableSinkingTilt = BindBool(config, toggles, "EnableSinkingTilt", d.general.enableSinkingTilt,
             "Forward pitch tilt as you sink into quicksand.");
         _enableHealthCondition = BindBool(config, toggles, "EnableHealthCondition", d.general.enableHealthCondition,
@@ -198,7 +199,7 @@ internal static class ConfigManager
         _damageKick = BindFloat(config, shake, "DamageKick", (float)d.general.damageKick, 0f, 20f,
             "Directional camera punch away from a hit, scaled by hit size.");
         _vehicleImpactTrauma = BindFloat(config, shake, "VehicleImpactTrauma", (float)d.general.vehicleImpactTrauma, 0f, 3f,
-            "Shake strength of a hard cruiser stop / crash, scaled by how fast you stopped.");
+            "Shake strength of a hard cruiser crash, scaled by how fast you stopped.");
         _flashbangTrauma = BindFloat(config, shake, "FlashbangTrauma", (float)d.general.flashbangTrauma, 0f, 5f,
             "Shake strength of a Stun Grenade detonation, scaled by distance.");
         _shipTakeoffShakeStrength = BindFloat(config, shake, "ShipTakeoffShakeStrength", (float)d.general.shipTakeoffShakeStrength, 0f, 5f,
@@ -235,7 +236,7 @@ internal static class ConfigManager
         config.SaveOnConfigSet = true;
 
         if (LethalConfigCompat.Present)
-            LethalConfigCompat.Register(_floats, _bools);
+            LethalConfigCompat.Register(_entries);
     }
 
     private static void BindContext(ConfigFile c, string section, ContextEntries e, ConfigData.Contextual def)
@@ -257,14 +258,14 @@ internal static class ConfigManager
     private static ConfigEntry<float> BindFloat(ConfigFile c, string section, string key, float def, float min, float max, string desc)
     {
         var e = c.Bind(section, key, def, new ConfigDescription(desc, new AcceptableValueRange<float>(min, max)));
-        _floats.Add(e);
+        _entries.Add(e);
         return e;
     }
 
     private static ConfigEntry<bool> BindBool(ConfigFile c, string section, string key, bool def, string desc)
     {
         var e = c.Bind(section, key, def, desc);
-        _bools.Add(e);
+        _entries.Add(e);
         return e;
     }
 

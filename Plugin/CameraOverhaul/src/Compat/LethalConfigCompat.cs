@@ -15,11 +15,25 @@ internal static class LethalConfigCompat
     public static bool Present => _present ??= Chainloader.PluginInfos.ContainsKey(Guid);
 
     [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
-    public static void Register(IReadOnlyList<ConfigEntry<float>> floats, IReadOnlyList<ConfigEntry<bool>> bools)
+    public static void Register(IReadOnlyList<ConfigEntryBase> entries)
     {
-        foreach (ConfigEntry<float> e in floats)
-            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(e, requiresRestart: false));
-        foreach (ConfigEntry<bool> e in bools)
-            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(e, requiresRestart: false));
+        foreach (ConfigEntryBase entry in entries)
+        {
+            switch (entry)
+            {
+                case ConfigEntry<float> f:
+                    LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(f, requiresRestart: false));
+                    break;
+                case ConfigEntry<int> i:
+                    LethalConfigManager.AddConfigItem(new IntSliderConfigItem(i, requiresRestart: false));
+                    break;
+                case ConfigEntry<bool> b:
+                    LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(b, requiresRestart: false));
+                    break;
+                default:
+                    Plugin.Log.LogDebug($"Skipping unsupported LethalConfig entry type: {entry.SettingType.Name}");
+                    break;
+            }
+        }
     }
 }
