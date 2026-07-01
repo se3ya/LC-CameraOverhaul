@@ -11,7 +11,7 @@ internal static class MathUtils
         => value < 0d ? 0d : (value > 1d ? 1d : value);
 
     public static double Lerp(double a, double b, double time)
-        => a + (b - a) * Clamp01(time);
+        => a + ((b - a) * Clamp01(time));
 
     // https://www.rorydriscoll.com/2016/03/07/frame-rate-independent-damping-using-lerp
     public static double Damp(double source, double destination, double smoothing, double dt)

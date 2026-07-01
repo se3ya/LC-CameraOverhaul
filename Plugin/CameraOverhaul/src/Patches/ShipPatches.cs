@@ -78,7 +78,7 @@ internal static class ShipMotionTracker
 
         EnsureShipReferences(so);
 
-        Vector3 probe = player.transform.position + Vector3.up * 0.25f;
+        Vector3 probe = player.transform.position + (Vector3.up * 0.25f);
         if (_shipBoundsCollider != null && _shipBoundsCollider.bounds.Contains(probe))
             return true;
 

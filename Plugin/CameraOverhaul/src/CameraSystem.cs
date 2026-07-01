@@ -576,8 +576,8 @@ internal sealed class CameraSystem
             phase = MathUtils.Clamp01(context.shipTakeoffPhase);
             strength = cfg.general.shipTakeoffShakeStrength;
             env = phase * phase; // slow start, ramps up
-            double forward = Math.Max(0.0, 1.0 - phase * 3.0);
-            dirPitch = (forward * SHIP_FORWARD_LURCH + env * SHIP_RISE_PITCH) * strength;
+            double forward = Math.Max(0.0, 1.0 - (phase * 3.0));
+            dirPitch = ((forward * SHIP_FORWARD_LURCH) + (env * SHIP_RISE_PITCH)) * strength;
         }
         else
         {
@@ -591,7 +591,7 @@ internal sealed class CameraSystem
         if (amp <= 0.0 && dirPitch == 0.0) return;
 
         _shipTime += dt * SHIP_RUMBLE_SPEED;
-        _offsetEuler.x += (float)(Noise.Sample(ShipNoise, _shipTime, 13100.0) * amp + dirPitch);
+        _offsetEuler.x += (float)((Noise.Sample(ShipNoise, _shipTime, 13100.0) * amp) + dirPitch);
         _offsetEuler.y += (float)(Noise.Sample(ShipNoise, _shipTime * 1.1, 13200.0) * amp * 0.7);
         _offsetEuler.z += (float)(Noise.Sample(ShipNoise, _shipTime * 0.9, 13300.0) * amp * 0.8);
     }

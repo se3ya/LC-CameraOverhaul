@@ -30,7 +30,7 @@ internal static class Noise
     private static double Perlin(float x, float seed)
     {
         float v = Mathf.PerlinNoise(x + 0.137f, seed + 0.613f);
-        return v * 2.0 - 1.0;
+        return (v * 2.0) - 1.0;
     }
 
     private static float Fractal(float x, float y)
@@ -49,8 +49,8 @@ internal static class Noise
     private static double PerlinWorley(float x, float seed)
     {
         double p = Perlin(x, seed);
-        double w = Worley1D(x * 0.5f, seed) * 2.0 - 1.0;
-        return p * (0.5 + 0.5 * w);
+        double w = (Worley1D((x * 0.5f), seed) * 2.0) - 1.0;
+        return p * (0.5 + (0.5 * w));
     }
 
     private static double Worley1D(float x, float seed)
@@ -69,7 +69,7 @@ internal static class Noise
         // integer hash to [0,1]
         int n = i ^ (int)(seed * 8192f);
         n = (n << 13) ^ n;
-        n = n * (n * n * 15731 + 789221) + 1376312589;
+        n = (n * (((n * n) * 15731) + 789221)) + 1376312589;
         return ((n & 0x7fffffff) / 2147483647f);
     }
 
@@ -77,7 +77,7 @@ internal static class Noise
     {
         const float k = 3.7f;
         double s = System.Math.Sin(x + seed);
-        return System.Math.Sin(s * k + x * 0.5);
+        return System.Math.Sin((s * k) + (x * 0.5));
     }
 
     private static readonly int[,] Grad = { { 1, 1 }, { -1, 1 }, { 1, -1 }, { -1, -1 }, { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
@@ -119,8 +119,8 @@ internal static class Noise
         int j1 = x0 > y0 ? 0 : 1;
         float x1 = x0 - i1 + g2;
         float y1 = y0 - j1 + g2;
-        float x2 = x0 - 1f + 2f * g2;
-        float y2 = y0 - 1f + 2f * g2;
+        float x2 = (x0 - 1f) + (2f * g2);
+        float y2 = (y0 - 1f) + (2f * g2);
 
         int ii = i & 255;
         int jj = j & 255;
@@ -133,10 +133,10 @@ internal static class Noise
 
     private static float Corner(float x, float y, int gi)
     {
-        float t = 0.5f - x * x - y * y;
+        float t = 0.5f - (x * x) - (y * y);
         if (t < 0f) return 0f;
         t *= t;
-        return t * t * (Grad[gi, 0] * x + Grad[gi, 1] * y);
+        return (t * t) * ((Grad[gi, 0] * x) + (Grad[gi, 1] * y));
     }
 
     private static double OpenSimplex2(float x, float seed)
@@ -144,7 +144,7 @@ internal static class Noise
         const float rot = 0.5773502692f; // 1/sqrt(3)
         float xr = (x + seed) * rot;
         float yr = seed * rot;
-        return Simplex(xr * 1.4f, yr * 1.4f + 17.3f);
+        return Simplex((xr * 1.4f), ((yr * 1.4f) + 17.3f));
     }
 
     private static int FastFloor(float v)
