@@ -87,8 +87,6 @@ internal static class CameraPatches
 
         ShipMotionTracker.GetLocalShipShakePhases(__instance, out float takeoffPhase, out float landingPhase);
 
-        // water: isUnderwater = body in a water volume; submerged = the camera is below its surface.
-        // gate on isUnderwater first since underwaterCollider isn't nulled on exit.
         bool inWater = __instance.isUnderwater;
         bool submerged = inWater && __instance.underwaterCollider != null
                          && __instance.underwaterCollider.bounds.Contains(camT.position);
