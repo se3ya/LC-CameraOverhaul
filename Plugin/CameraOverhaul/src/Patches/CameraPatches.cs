@@ -169,7 +169,6 @@ internal static class CameraPatches
         ShockTracker.BeingShocked = false;
     }
 
-    // one-shot camera dips on entering water (feet) and on going fully under (head).
     private static void TriggerWaterSplashes(bool inWater, bool submerged)
     {
         var g = ConfigManager.Data.general;
