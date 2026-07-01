@@ -58,7 +58,7 @@ internal sealed class ConfigData
         public double shipLandingShakeStrength = 0.7;   // camera shake as the ship descends and touches down (0 disables)
         public double weaponShakeTrauma = 1.3;    // shake on firing a gun
         public double weaponRecoilKick = 30.0;      // upward recoil punch per shot
-        public double meleeWeaponShakeTrauma = 1.3; // shake on swinging a shovel
+        public double meleeWeaponShakeTrauma = 1.0; // shake on swinging a shovel
         public double meleeWeaponRecoilKick = 5.0; // upward punch per shovel swing
         public double meleeWeaponMissMultiplier = 0.5; // multiplier when you swing but hit nothing
         public double landingDipStrength = 6.0;     // how far the camera dips down on a hard landing
