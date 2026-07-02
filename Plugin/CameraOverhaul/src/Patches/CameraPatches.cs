@@ -185,7 +185,8 @@ internal static class CameraPatches
         => player.isClimbingLadder
            || player.inVehicleAnimation
            || player.inSpecialInteractAnimation
-           || player.inTerminalMenu;
+           || player.inTerminalMenu
+           || player.IsInspectingItem;
 
     private static bool NeedsCameraRestore(bool justActivated, PlayerControllerB player)
         => justActivated
