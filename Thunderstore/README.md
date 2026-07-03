@@ -24,6 +24,7 @@
 - Explosion and flashbang shake
 - Cruiser crash impact trauma
 - Ship takeoff and landing shake
+- Freezing shake effect on snowy moons
 - Tinnitus sway
 - Exhaustion sway with stamina trigger
 - Insanity sway
@@ -34,6 +35,7 @@
 - Shock jitter
 - Sinking tilt
 - Water effects
+- Earth Leviathan effects
 - *Everything is configurable!*
 
 ---
