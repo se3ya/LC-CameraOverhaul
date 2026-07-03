@@ -43,16 +43,7 @@ internal static class PlayerControllerBPatch
         CharacterController? controller = __instance.thisController;
         Transform? body = __instance.thisPlayerBody;
 
-        if (IsDeactivating(__instance, cam, controller, body))
-        {
-            DeactivateCameraState(cam, deactivation: true);
-            return;
-        }
-        if (IsLookLocked(__instance) || __instance.teleportedLastFrame)
-        {
-            DeactivateCameraState(cam, deactivation: false);
-            return;
-        }
+        if (HandleInactiveState(__instance, cam, controller, body)) return;
 
         bool justActivated = !_wasActive;
         bool inControlledCamera = IsInControlledCamera(__instance);
@@ -65,67 +56,94 @@ internal static class PlayerControllerBPatch
         }
 
         Transform camT = cam.transform;
-
-        if (needsCameraRestore)
-        {
-            Vector3 prev = camT.localEulerAngles;
-            camT.localEulerAngles = new Vector3(prev.x, prev.y - _lastYawOffset, prev.z - _lastRollOffset);
-            _lastYawOffset = 0f;
-            _lastRollOffset = 0f;
-        }
-
+        if (needsCameraRestore) RestoreLastOffset(camT);
         MarkCameraStateActive(__instance);
 
         Vector3 cur = camT.localEulerAngles;
-
         float dt = Mathf.Min(Time.deltaTime, MaxDeltaTime);
-        Vector3 vel = ReadVelocity(__instance, controller, inControlledCamera, dt, out bool useCruiserEffects) * (float)VelocityScale;
 
-        float effectiveDrunkness = Mathf.Clamp01(__instance.drunkness);
+        Vector3 vel = ReadEffectiveVelocity(__instance, controller, inControlledCamera, dt,
+            out bool useCruiserEffects, out float effectiveDrunkness);
+
+        CameraContext ctx = BuildContext(__instance, body, camT, ___cameraUp, vel, effectiveDrunkness, needsCameraRestore);
+
+        _system.OnCameraUpdate(in ctx, dt, __instance);
+        ApplyCameraOffset(__instance, camT, cur, useCruiserEffects, inControlledCamera);
+    }
+
+    private static bool HandleInactiveState(PlayerControllerB player, Camera? cam, CharacterController? controller, Transform? body)
+    {
+        if (IsDeactivating(player, cam, controller, body))
+        {
+            DeactivateCameraState(cam, deactivation: true);
+            return true;
+        }
+        if (IsLookLocked(player) || player.teleportedLastFrame)
+        {
+            DeactivateCameraState(cam, deactivation: false);
+            return true;
+        }
+        return false;
+    }
+
+    private static void RestoreLastOffset(Transform camT)
+    {
+        Vector3 prev = camT.localEulerAngles;
+        camT.localEulerAngles = new Vector3(prev.x, prev.y - _lastYawOffset, prev.z - _lastRollOffset);
+        _lastYawOffset = 0f;
+        _lastRollOffset = 0f;
+    }
+
+    private static Vector3 ReadEffectiveVelocity(PlayerControllerB p, CharacterController controller,
+        bool inControlledCamera, float dt, out bool useCruiserEffects, out float effectiveDrunkness)
+    {
+        Vector3 vel = ReadVelocity(p, controller, inControlledCamera, dt, out useCruiserEffects) * (float)VelocityScale;
+
+        effectiveDrunkness = Mathf.Clamp01(p.drunkness);
         if (!ConfigManager.Data.general.enableDrunknessEffect && effectiveDrunkness > 0f)
         {
             vel = RemoveVanillaDrunkSpeedScaling(vel, effectiveDrunkness);
             effectiveDrunkness = 0f;
         }
+        return vel;
+    }
 
+    private static CameraContext BuildContext(PlayerControllerB p, Transform body, Transform camT,
+        float cameraUp, in Vector3 vel, float effectiveDrunkness, bool needsCameraRestore)
+    {
         Vector3 fwd = body.forward; fwd.y = 0f;
         fwd = fwd.sqrMagnitude > 1e-6f ? fwd.normalized : Vector3.forward;
         Vector3 right = body.right; right.y = 0f;
         right = right.sqrMagnitude > 1e-6f ? right.normalized : Vector3.right;
 
-        ShipMotionTracker.GetLocalShipShakePhases(__instance, out float takeoffPhase, out float landingPhase);
-        float leviathanProximity = LeviathanTracker.GetLocalProximity01(__instance, out LeviathanCue leviathanCue);
+        ShipMotionTracker.GetLocalShipShakePhases(p, out float takeoffPhase, out float landingPhase);
+        float leviathanProximity = LeviathanTracker.GetLocalProximity01(p, out LeviathanCue leviathanCue);
 
-        bool inWater = __instance.isUnderwater;
-        bool submerged = inWater && __instance.underwaterCollider != null
-                         && __instance.underwaterCollider.bounds.Contains(camT.position);
+        bool inWater = p.isUnderwater;
+        bool submerged = inWater && p.underwaterCollider != null
+                         && p.underwaterCollider.bounds.Contains(camT.position);
         TriggerWaterSplashes(inWater, submerged);
 
-        StartOfRound? so = StartOfRound.Instance;
-        bool onSnowyMoon = so != null && so.currentLevel != null && so.currentLevel.levelIncludesSnowFootprints;
-        bool inSnow = onSnowyMoon && !__instance.isInsideFactory && !__instance.isInHangarShipRoom;
-        bool shipWithDoorsOpen = onSnowyMoon && __instance.isInHangarShipRoom && so != null && !so.hangarDoorsClosed;
-        bool hasActiveLight = (inSnow || shipWithDoorsOpen)
-            && (HasActiveLightSource(__instance) || HasNearbyLightSource(__instance));
+        ComputeColdExposure(p, out bool inSnow, out bool shipWithDoorsOpen, out bool hasActiveLight);
 
-        CameraContext ctx = new CameraContext
+        return new CameraContext
         {
-            isSprinting = __instance.isSprinting,
-            isCrouching = __instance.isCrouching,
-            inVehicle = __instance.inVehicleAnimation,
-            isClimbing = __instance.isClimbingLadder,
-            isExhausted = __instance.isExhausted,
-            isInspectingItem = __instance.IsInspectingItem,
-            criticallyInjured = __instance.criticallyInjured,
-            isUsingJetpack = __instance.jetpackControls,
+            isSprinting = p.isSprinting,
+            isCrouching = p.isCrouching,
+            inVehicle = p.inVehicleAnimation,
+            isClimbing = p.isClimbingLadder,
+            isExhausted = p.isExhausted,
+            isInspectingItem = p.IsInspectingItem,
+            criticallyInjured = p.criticallyInjured,
+            isUsingJetpack = p.jetpackControls,
             isBeingShocked = ShockTracker.BeingShocked,
-            sprintMeter = __instance.sprintMeter,
+            sprintMeter = p.sprintMeter,
             drunkness = effectiveDrunkness,
-            insanity = __instance.maxInsanityLevel > 0f
-                ? __instance.insanityLevel / __instance.maxInsanityLevel
+            insanity = p.maxInsanityLevel > 0f
+                ? p.insanityLevel / p.maxInsanityLevel
                 : 0f,
-            poison = __instance.poison,
-            sinkingValue = __instance.sinkingValue,
+            poison = p.poison,
+            sinkingValue = p.sinkingValue,
             shipTakeoffPhase = takeoffPhase,
             shipLandingPhase = landingPhase,
             inWater = inWater,
@@ -137,12 +155,25 @@ internal static class PlayerControllerBPatch
             hasActiveLight = hasActiveLight,
             velocity = vel,
             forwardRelVelocity = new Vector3(Vector3.Dot(vel, right), vel.y, Vector3.Dot(vel, fwd)),
-            pitch = ___cameraUp,
+            pitch = cameraUp,
             yaw = body.eulerAngles.y,
             resetSmoothing = needsCameraRestore
         };
+    }
 
-        _system.OnCameraUpdate(in ctx, dt, __instance);
+    private static void ComputeColdExposure(PlayerControllerB p, out bool inSnow, out bool shipWithDoorsOpen, out bool hasActiveLight)
+    {
+        StartOfRound? so = StartOfRound.Instance;
+        bool onSnowyMoon = so != null && so.currentLevel != null && so.currentLevel.levelIncludesSnowFootprints;
+        inSnow = onSnowyMoon && !p.isInsideFactory && !p.isInHangarShipRoom;
+        shipWithDoorsOpen = onSnowyMoon && p.isInHangarShipRoom && so != null && !so.hangarDoorsClosed;
+        hasActiveLight = (inSnow || shipWithDoorsOpen)
+            && (HasActiveLightSource(p) || HasNearbyLightSource(p));
+    }
+
+    private static void ApplyCameraOffset(PlayerControllerB p, Transform camT, in Vector3 cur,
+        bool useCruiserEffects, bool inControlledCamera)
+    {
         Vector3 off = _system.OffsetEuler;
 
         if (useCruiserEffects)
@@ -164,7 +195,7 @@ internal static class PlayerControllerBPatch
         _lastYawOffset = off.y;
         _lastRollOffset = off.z;
 
-        VisorCompat.StickVisor(__instance.localVisor, __instance.localVisorTargetPoint, 1.0f);
+        VisorCompat.StickVisor(p.localVisor, p.localVisorTargetPoint, 1.0f);
     }
 
     private static bool IsDeactivating(PlayerControllerB player, Camera? cam, CharacterController? controller, Transform? body)
