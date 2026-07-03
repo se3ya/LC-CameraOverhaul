@@ -24,6 +24,8 @@ internal sealed class ConfigData
         public bool enableShockEffect = true;       // electric jitter while zapped by a zap gun
         public bool enableSinkingTilt = true;       // forward pitch tilt while sinking in quicksand
         public bool enableWaterEffect = true;       // wade slosh + submerged buoyancy drift in water
+        public bool enableLeviathanEffects = true;  // shake when an Earth Leviathan emerges or rumbles nearby
+        public bool enableFreezeEffect = true;      // freeze while outside on a snowy moon
         public bool enableHealthCondition = true;      // camera effects scale down when injured
 
         public double turningRollAccumulation = 2.5;        // how quickly fast turning builds up the lean
@@ -39,6 +41,7 @@ internal sealed class ConfigData
         public double exhaustionSwayMultiplier = 4.0; // how much stronger sway is when exhausted
         public double exhaustionTriggerStamina = 0.4; // below what stamina level exhaustion begins
         public double insanitySwayMultiplier = 1.5; // how much stronger sway is when fully panicked
+        public double insanityTriggerThreshold = 0.8; // insanity sway starts kicking in at
         public double drunknessSwayMultiplier = 6.0; // large floaty drift scaling
         public double criticalInjurySwayMultiplier = 4.0; // heavy near-death sway strength
         public double poisonSwayMultiplier = 6.0;    // jittery poisoned sway strength
@@ -48,6 +51,19 @@ internal sealed class ConfigData
         public double waterWadeStrength = 2.0;           // slosh sway strength while wading through water
         public double waterSubmergedDriftStrength = 5.0; // floaty buoyancy drift strength while submerged
         public double waterSplashStrength = 5.0;         // downward camera dip when entering / going under water
+        public double leviathanEmergeTrauma = 2.0;       // one shake when Earth Leviathan slams down after emerging nearby
+        public double leviathanEmergeKick = 3.0;         // directional camera punch on the emerge ground slam
+        public double leviathanProximityStrength = 1.5;  // max degrees of tremor while a Earth Leviathan is close and still burrowed
+        public double leviathanProximityRadius = 45.0;   // meters within which the burrowed tremor is felt
+        public double leviathanWarningTremorMultiplier = 2.5; // how much stronger  tremor gets while a nearby Earth Leviathan is warning
+        public double leviathanRumbleShakeMultiplier = 1.5;   // extra tremor while a nearby Earth Leviathan plays its rumble sound
+        public double leviathanGrowlShakeMultiplier = 2.5;    // extra tremor while a nearby Earth Leviathan plays its growl sound
+        public double freezeStrength = 0.4;         // max freezing degrees at full cold
+        public double freezeBuildSeconds = 200.0;   // seconds outdoor to reach full cold
+        public double freezeRecoverSeconds = 30.0;  // seconds to warm back up once in warm place
+        public double freezeLightReduce = 0.35;     // freezing reduces while a light source is equipped or nearby
+        public double freezeLightRadius = 3.0;      // meters within which a nearby light source object also reduces freezing
+        public double freezeShipOpenDoorTarget = 0.3;  // freezing effect reduces while in the ship with the hangar doors are still open
 
         public double screenShakesMaxIntensity = 2.5;       // screen shake strength multiplies all shakes
         public double screenShakesMaxFrequency = 6.0;       // screen shake speed/harshness
