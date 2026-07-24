@@ -35,6 +35,7 @@ internal static class ConfigManager
     private static ConfigEntry<bool> _enableSinkingTilt = null!;
     private static ConfigEntry<bool> _enableWaterEffect = null!;
     private static ConfigEntry<bool> _enableLeviathanEffects = null!;
+    private static ConfigEntry<bool> _enableJesterShake = null!;
     private static ConfigEntry<bool> _enableFreezeEffect = null!;
     private static ConfigEntry<bool> _enableHealthCondition = null!;
 
@@ -68,6 +69,9 @@ internal static class ConfigManager
     private static ConfigEntry<float> _leviathanWarningTremorMultiplier = null!;
     private static ConfigEntry<float> _leviathanRumbleShakeMultiplier = null!;
     private static ConfigEntry<float> _leviathanGrowlShakeMultiplier = null!;
+    private static ConfigEntry<float> _jesterStompTrauma = null!;
+    private static ConfigEntry<float> _jesterStompRadius = null!;
+    private static ConfigEntry<float> _jesterStompFalloff = null!;
     private static ConfigEntry<float> _freezeStrength = null!;
     private static ConfigEntry<float> _freezeBuildSeconds = null!;
     private static ConfigEntry<float> _freezeRecoverSeconds = null!;
@@ -164,6 +168,8 @@ internal static class ConfigManager
             "Sloshy sway while wading and floaty drift while submerged in water.");
         _enableLeviathanEffects = BindBool(config, toggles, "EnableLeviathanEffects", d.general.enableLeviathanEffects,
             "Camera shake when an Earth Leviathan starts emerging, emerges back and light tremor while it's close.");
+        _enableJesterShake = BindBool(config, toggles, "EnableJesterShake", d.general.enableJesterShake,
+            "Camera shake on every stomp of popped Jester chasing, scaled by distance.");
         _enableFreezeEffect = BindBool(config, toggles, "EnableFreezeEffect", d.general.enableFreezeEffect,
             "Freezing that builds up while outside on a snowy moon.");
         _enableHealthCondition = BindBool(config, toggles, "EnableHealthCondition", d.general.enableHealthCondition,
@@ -293,6 +299,14 @@ internal static class ConfigManager
         _freezeShipOpenDoorTarget = BindFloat(config, freeze, "ShipOpenDoorTarget", (float)d.general.freezeShipOpenDoorTarget, 0f, 1f,
             "Freeze effect reduces while in the ship with the hangar doors are still open. It fully reduces once hangar close.");
 
+        const string jester = "C. Jester";
+        _jesterStompTrauma = BindFloat(config, jester, "StompTrauma", (float)d.general.jesterStompTrauma, 0f, 3f,
+            "Shake strength every stomp of popped Jester, scaled by distance.");
+        _jesterStompRadius = BindFloat(config, jester, "StompRadius", (float)d.general.jesterStompRadius, 0f, 40f,
+            "Radius within popped Jesters stomps shake the camera.");
+        _jesterStompFalloff = BindFloat(config, jester, "StompFalloff", (float)d.general.jesterStompFalloff, 1f, 4f,
+            "How strongly the stomp shake fades with distance.");
+
         Sync();
         config.SettingChanged += (_, _) => Sync();
 
@@ -360,6 +374,7 @@ internal static class ConfigManager
         g.enableSinkingTilt = _enableSinkingTilt.Value;
         g.enableWaterEffect = _enableWaterEffect.Value;
         g.enableLeviathanEffects = _enableLeviathanEffects.Value;
+        g.enableJesterShake = _enableJesterShake.Value;
         g.enableFreezeEffect = _enableFreezeEffect.Value;
         g.enableHealthCondition = _enableHealthCondition.Value;
         g.turningRollIntensity = _turningRollIntensity.Value;
@@ -391,6 +406,9 @@ internal static class ConfigManager
         g.leviathanWarningTremorMultiplier = _leviathanWarningTremorMultiplier.Value;
         g.leviathanRumbleShakeMultiplier = _leviathanRumbleShakeMultiplier.Value;
         g.leviathanGrowlShakeMultiplier = _leviathanGrowlShakeMultiplier.Value;
+        g.jesterStompTrauma = _jesterStompTrauma.Value;
+        g.jesterStompRadius = _jesterStompRadius.Value;
+        g.jesterStompFalloff = _jesterStompFalloff.Value;
         g.freezeStrength = _freezeStrength.Value;
         g.freezeBuildSeconds = _freezeBuildSeconds.Value;
         g.freezeRecoverSeconds = _freezeRecoverSeconds.Value;
