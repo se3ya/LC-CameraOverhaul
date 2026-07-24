@@ -19,6 +19,7 @@ internal static class LeviathanTracker
     private static SandWormAI[] _worms = Array.Empty<SandWormAI>();
     private static float _rescanTimer;
     private const float RescanInterval = 3f;
+    private const float AudibleProximityFloor = 0.3f;
 
     [HarmonyPostfix]
     [HarmonyPatch("SceneManager_OnLoadComplete1")]
@@ -46,31 +47,31 @@ internal static class LeviathanTracker
         Camera? cam = player.gameplayCamera;
         Vector3 pos = cam != null ? cam.transform.position : player.transform.position;
 
-        float best = 0f;
         SandWormAI? nearest = null;
+        float nearestDist = float.MaxValue;
         for (int i = 0; i < _worms.Length; i++)
         {
             SandWormAI worm = _worms[i];
             if (worm == null || worm.isEnemyDead || worm.emerged) continue;
 
-            float dist = Vector3.Distance(pos, worm.transform.position);
-            float factor = 1f - Mathf.Clamp01(dist / radius);
-            if (factor > best)
+            Vector3 delta = worm.transform.position - pos;
+            delta.y = 0f;
+            float dist = delta.magnitude;
+            if (dist < nearestDist)
             {
-                best = factor;
+                nearestDist = dist;
                 nearest = worm;
             }
         }
 
-        if (nearest != null)
-        {
-            AudioSource sfx = nearest.creatureSFX;
-            cue = nearest.inEmergingState ? LeviathanCue.Emerging
-                : sfx != null && sfx.isPlaying ? ClassifyClip(sfx.clip)
-                : LeviathanCue.None;
-        }
+        if (nearest == null) return 0f;
 
-        return best;
+        AudioSource sfx = nearest.creatureSFX;
+        bool audible = sfx != null && sfx.isPlaying && nearestDist < Mathf.Max(sfx.maxDistance, radius);
+        if (!audible) return 0f;
+
+        cue = nearest.inEmergingState ? LeviathanCue.Emerging : ClassifyClip(sfx!.clip);
+        return Mathf.Max(1f - Mathf.Clamp01(nearestDist / radius), AudibleProximityFloor);
     }
 
     private static AudioClip? _classifiedClip;
