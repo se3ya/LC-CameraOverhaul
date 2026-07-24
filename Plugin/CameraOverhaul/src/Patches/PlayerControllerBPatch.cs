@@ -13,8 +13,6 @@ internal static class PlayerControllerBPatch
 
     private static bool _wasActive;
     private static bool _pendingReset = true;
-    private static float _lastYawOffset;
-    private static float _lastRollOffset;
     private static float _vehicleSpeed;
     private static bool _hasVehicleSpeed;
 
@@ -56,7 +54,6 @@ internal static class PlayerControllerBPatch
         }
 
         Transform camT = cam.transform;
-        if (needsCameraRestore) RestoreLastOffset(camT);
         MarkCameraStateActive(__instance);
 
         Vector3 cur = camT.localEulerAngles;
@@ -84,14 +81,6 @@ internal static class PlayerControllerBPatch
             return true;
         }
         return false;
-    }
-
-    private static void RestoreLastOffset(Transform camT)
-    {
-        Vector3 prev = camT.localEulerAngles;
-        camT.localEulerAngles = new Vector3(prev.x, prev.y - _lastYawOffset, prev.z - _lastRollOffset);
-        _lastYawOffset = 0f;
-        _lastRollOffset = 0f;
     }
 
     private static Vector3 ReadEffectiveVelocity(PlayerControllerB p, CharacterController controller,
@@ -188,12 +177,7 @@ internal static class PlayerControllerBPatch
 
         ClampEffectOffset(ref off, cur.x);
 
-        camT.localEulerAngles = new Vector3(
-            cur.x + off.x,
-            cur.y - _lastYawOffset + off.y,
-            cur.z - _lastRollOffset + off.z);
-        _lastYawOffset = off.y;
-        _lastRollOffset = off.z;
+        camT.localEulerAngles = new Vector3(cur.x + off.x, off.y, off.z);
 
         VisorCompat.StickVisor(p.localVisor, p.localVisorTargetPoint, 1.0f);
     }
@@ -411,9 +395,7 @@ internal static class PlayerControllerBPatch
     private static void RestoreCamera(Transform camT)
     {
         Vector3 cur = camT.localEulerAngles;
-        camT.localEulerAngles = new Vector3(cur.x, cur.y - _lastYawOffset, cur.z - _lastRollOffset);
-        _lastYawOffset = 0f;
-        _lastRollOffset = 0f;
+        camT.localEulerAngles = new Vector3(cur.x, 0f, 0f);
     }
 
     private static void ClampEffectOffset(ref Vector3 off, float basePitchEuler)
