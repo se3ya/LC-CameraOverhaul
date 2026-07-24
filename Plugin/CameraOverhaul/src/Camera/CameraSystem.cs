@@ -539,7 +539,7 @@ internal sealed class CameraSystem
         }
     }
 
-    private const double LEVIATHAN_TREMOR_SPEED = 0.5;
+    private const double LEVIATHAN_RUMBLE_SPEED = 9.0;
     private const double LEVIATHAN_INTENSITY_SMOOTHING = 0.1;
 
     private void LeviathanOffset(in CameraContext context, double dt, ConfigData cfg)
@@ -556,10 +556,10 @@ internal sealed class CameraSystem
         _leviathanIntensity = MathUtils.Damp(_leviathanIntensity, target, LEVIATHAN_INTENSITY_SMOOTHING, dt);
         if (_leviathanIntensity <= 0.0001) return;
 
-        _leviathanTime += dt * LEVIATHAN_TREMOR_SPEED;
+        _leviathanTime += dt * LEVIATHAN_RUMBLE_SPEED;
         _impairOffset.x += (float)(Noise.Sample(LeviathanNoise, _leviathanTime, 15100.0) * _leviathanIntensity);
-        _impairOffset.z += (float)(Noise.Sample(LeviathanNoise, _leviathanTime * 0.8, 15200.0) * _leviathanIntensity);
-        _impairOffset.y += (float)(Noise.Sample(LeviathanNoise, _leviathanTime * 0.6, 15300.0) * _leviathanIntensity * 0.4);
+        _impairOffset.y += (float)(Noise.Sample(LeviathanNoise, _leviathanTime * 1.1, 15300.0) * _leviathanIntensity * 0.7);
+        _impairOffset.z += (float)(Noise.Sample(LeviathanNoise, _leviathanTime * 0.9, 15200.0) * _leviathanIntensity * 0.8);
     }
 
     private const double FREEZING_SPEED = 9.0;
