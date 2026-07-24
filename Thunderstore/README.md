@@ -36,6 +36,7 @@
 - Sinking tilt
 - Water effects
 - Earth Leviathan effects
+- Popped Jester stomp effects
 - *Everything is configurable!*
 
 ---
