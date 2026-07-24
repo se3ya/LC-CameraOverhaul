@@ -16,7 +16,7 @@ internal sealed class ConfigData
         public bool enableMeleeWeaponShake = true;  // shovel swing kick
         public bool enableTinnitusEffect = true;    // camera sway/disorientation on ringing ears
         public bool enableExhaustionEffect = true;  // heavy breathing/sway when out of stamina
-        public bool enableInsanityEffect = true;    // paranoid, faster sway when in dark/chased
+        public bool enableInsanityEffect = false;    // paranoid, faster sway when in dark/chased
         public bool enableDrunknessEffect = true;   // smooth floating roll when dizzy [ TZP-inhalant ]
         public bool enableCriticalInjuryEffect = true;  // heavy near death sway when critically injured
         public bool enablePoisonEffect = true;      // jittery erratic sway when poisoned
@@ -25,6 +25,7 @@ internal sealed class ConfigData
         public bool enableSinkingTilt = true;       // forward pitch tilt while sinking in quicksand
         public bool enableWaterEffect = true;       // wade slosh + submerged buoyancy drift in water
         public bool enableLeviathanEffects = true;  // shake when an Earth Leviathan emerges or rumbles nearby
+        public bool enableJesterShake = true;       // shake on each stomp of a popped Jester chasing nearby
         public bool enableFreezeEffect = true;      // freeze while outside on a snowy moon
         public bool enableHealthCondition = true;      // camera effects scale down when injured
 
@@ -40,8 +41,8 @@ internal sealed class ConfigData
         public double tinnitusSwayMultiplier = 10.0; // how much stronger sway is when ears ring
         public double exhaustionSwayMultiplier = 4.0; // how much stronger sway is when exhausted
         public double exhaustionTriggerStamina = 0.4; // below what stamina level exhaustion begins
-        public double insanitySwayMultiplier = 1.5; // how much stronger sway is when fully panicked
-        public double insanityTriggerThreshold = 0.8; // insanity sway starts kicking in at
+        public double insanitySwayMultiplier = 1.0; // how much stronger sway is when fully panicked
+        public double insanityTriggerThreshold = 0.9; // insanity sway starts kicking in at
         public double drunknessSwayMultiplier = 6.0; // large floaty drift scaling
         public double criticalInjurySwayMultiplier = 4.0; // heavy near-death sway strength
         public double poisonSwayMultiplier = 6.0;    // jittery poisoned sway strength
@@ -58,6 +59,9 @@ internal sealed class ConfigData
         public double leviathanWarningTremorMultiplier = 2.5; // how much stronger  tremor gets while a nearby Earth Leviathan is warning
         public double leviathanRumbleShakeMultiplier = 1.5;   // extra tremor while a nearby Earth Leviathan plays its rumble sound
         public double leviathanGrowlShakeMultiplier = 2.5;    // extra tremor while a nearby Earth Leviathan plays its growl sound
+        public double jesterStompTrauma = 1.6;      // shake strength every stomp of popped Jester, scaled by distance
+        public double jesterStompRadius = 35.0;     // radius within popped Jesters stomps shake the camera
+        public double jesterStompFalloff = 2.0;     // how strongler the stomp shake fades with distance
         public double freezeStrength = 0.4;         // max freezing degrees at full cold
         public double freezeBuildSeconds = 200.0;   // seconds outdoor to reach full cold
         public double freezeRecoverSeconds = 30.0;  // seconds to warm back up once in warm place
