@@ -177,7 +177,9 @@ internal static class PlayerControllerBPatch
 
         ClampEffectOffset(ref off, cur.x);
 
-        camT.localEulerAngles = new Vector3(cur.x + off.x, off.y, off.z);
+        bool freeCamera = !useCruiserEffects && !inControlledCamera;
+        float yaw = freeCamera ? off.y : cur.y;
+        camT.localEulerAngles = new Vector3(cur.x + off.x, yaw, off.z);
 
         VisorCompat.StickVisor(p.localVisor, p.localVisorTargetPoint, 1.0f);
     }
