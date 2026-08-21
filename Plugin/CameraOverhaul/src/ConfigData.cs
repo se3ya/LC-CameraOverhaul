@@ -26,6 +26,8 @@ internal sealed class ConfigData
         public bool enableWaterEffect = true;       // wade slosh + submerged buoyancy drift in water
         public bool enableLeviathanEffects = true;  // shake when an Earth Leviathan emerges or rumbles nearby
         public bool enableJesterShake = true;       // shake on each stomp of a popped Jester chasing nearby
+        public bool enableForestGiantEffect = true; // ground rumble while Forest Keeper while walks
+        public bool enableBrackenSnap = true;       // snaps camera sideways when Bracken kills player
         public bool enableFreezeEffect = true;      // freeze while outside on a snowy moon
         public bool enableHealthCondition = true;      // camera effects scale down when injured
 
@@ -62,6 +64,9 @@ internal sealed class ConfigData
         public double jesterStompTrauma = 1.6;      // shake strength every stomp of popped Jester, scaled by distance
         public double jesterStompRadius = 35.0;     // radius within popped Jesters stomps shake the camera
         public double jesterStompFalloff = 2.0;     // how strongler the stomp shake fades with distance
+        public double forestGiantStompTrauma = 1.0;     // shake strength per stomp of Forest Keeper, scaled by distance
+        public double forestGiantStompFalloff = 1.0;    // how sharply stomp shake fades with distance
+        public double brackenSnapAngle = 90.0;          // degrees camera is snapped to side
         public double freezeStrength = 0.4;         // max freezing degrees at full cold
         public double freezeBuildSeconds = 200.0;   // seconds outdoor to reach full cold
         public double freezeRecoverSeconds = 30.0;  // seconds to warm back up once in warm place
