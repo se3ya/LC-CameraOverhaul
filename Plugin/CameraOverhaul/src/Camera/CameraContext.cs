@@ -5,7 +5,6 @@ namespace CameraOverhaul;
 internal struct CameraContext
 {
     public bool isSprinting;
-    public bool isCrouching;
     public bool inVehicle;
     public bool isClimbing;
     public bool isExhausted;
@@ -27,6 +26,8 @@ internal struct CameraContext
     public bool inSnow;
     public bool shipWithDoorsOpen;
     public bool hasActiveLight;
+    public bool grabbedByEnemy;
+    public bool grabbedByBracken;
 
     public Vector3 velocity;
     public Vector3 forwardRelVelocity;
