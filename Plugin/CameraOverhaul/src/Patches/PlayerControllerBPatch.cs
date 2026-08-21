@@ -65,7 +65,7 @@ internal static class PlayerControllerBPatch
         CameraContext ctx = BuildContext(__instance, body, camT, ___cameraUp, vel, effectiveDrunkness, needsCameraRestore);
 
         _system.OnCameraUpdate(in ctx, dt, __instance);
-        ApplyCameraOffset(__instance, camT, cur, useCruiserEffects, inControlledCamera);
+        ApplyCameraOffset(__instance, camT, cur, useCruiserEffects, inControlledCamera, ctx.grabbedByEnemy);
     }
 
     private static bool HandleInactiveState(PlayerControllerB player, Camera? cam, CharacterController? controller, Transform? body)
@@ -75,13 +75,16 @@ internal static class PlayerControllerBPatch
             DeactivateCameraState(cam, deactivation: true);
             return true;
         }
-        if (IsLookLocked(player) || player.teleportedLastFrame)
+        if ((IsLookLocked(player) || player.teleportedLastFrame) && !IsGrabbed(player))
         {
             DeactivateCameraState(cam, deactivation: false);
             return true;
         }
         return false;
     }
+
+    private static bool IsGrabbed(PlayerControllerB p)
+        => p.inAnimationWithEnemy != null && !p.disableLookInput;
 
     private static Vector3 ReadEffectiveVelocity(PlayerControllerB p, CharacterController controller,
         bool inControlledCamera, float dt, out bool useCruiserEffects, out float effectiveDrunkness)
@@ -115,10 +118,11 @@ internal static class PlayerControllerBPatch
 
         ComputeColdExposure(p, out bool inSnow, out bool shipWithDoorsOpen, out bool hasActiveLight);
 
+        bool grabbedByBracken = IsBrackenGrab(p, out bool grabbed);
+
         return new CameraContext
         {
             isSprinting = p.isSprinting,
-            isCrouching = p.isCrouching,
             inVehicle = p.inVehicleAnimation,
             isClimbing = p.isClimbingLadder,
             isExhausted = p.isExhausted,
@@ -142,6 +146,8 @@ internal static class PlayerControllerBPatch
             inSnow = inSnow,
             shipWithDoorsOpen = shipWithDoorsOpen,
             hasActiveLight = hasActiveLight,
+            grabbedByEnemy = grabbed,
+            grabbedByBracken = grabbedByBracken,
             velocity = vel,
             forwardRelVelocity = new Vector3(Vector3.Dot(vel, right), vel.y, Vector3.Dot(vel, fwd)),
             pitch = cameraUp,
@@ -152,16 +158,24 @@ internal static class PlayerControllerBPatch
 
     private static void ComputeColdExposure(PlayerControllerB p, out bool inSnow, out bool shipWithDoorsOpen, out bool hasActiveLight)
     {
+        inSnow = false;
+        shipWithDoorsOpen = false;
+        hasActiveLight = false;
+
+        if (!ConfigManager.Data.general.enableFreezeEffect) return;
+
         StartOfRound? so = StartOfRound.Instance;
-        bool onSnowyMoon = so != null && so.currentLevel != null && so.currentLevel.levelIncludesSnowFootprints;
-        inSnow = onSnowyMoon && !p.isInsideFactory && !p.isInHangarShipRoom;
-        shipWithDoorsOpen = onSnowyMoon && p.isInHangarShipRoom && so != null && !so.hangarDoorsClosed;
-        hasActiveLight = (inSnow || shipWithDoorsOpen)
-            && (HasActiveLightSource(p) || HasNearbyLightSource(p));
+        if (so == null || so.currentLevel == null || !so.currentLevel.levelIncludesSnowFootprints) return;
+
+        inSnow = !p.isInsideFactory && !p.isInHangarShipRoom;
+        shipWithDoorsOpen = p.isInHangarShipRoom && !so.hangarDoorsClosed;
+        if (!inSnow && !shipWithDoorsOpen) return;
+
+        hasActiveLight = HasActiveLightSource(p) || HasNearbyLightSource(p);
     }
 
     private static void ApplyCameraOffset(PlayerControllerB p, Transform camT, in Vector3 cur,
-        bool useCruiserEffects, bool inControlledCamera)
+        bool useCruiserEffects, bool inControlledCamera, bool grabbed)
     {
         Vector3 off = _system.OffsetEuler;
 
@@ -170,18 +184,28 @@ internal static class PlayerControllerBPatch
             off.y = 0f;
             off.z = 0f;
         }
-        else if (inControlledCamera)
+        else if (inControlledCamera && !grabbed)
         {
             off = Vector3.zero;
         }
 
+        float effectScale = CameraOverhaulApi.EffectScale;
+        off *= effectScale;
+
         ClampEffectOffset(ref off, cur.x);
 
-        bool freeCamera = !useCruiserEffects && !inControlledCamera;
+        bool freeCamera = grabbed || (!useCruiserEffects && !inControlledCamera);
         float yaw = freeCamera ? off.y : cur.y;
-        camT.localEulerAngles = new Vector3(cur.x + off.x, yaw, off.z);
+        float snapYaw = (float)_system.NeckSnapYaw * effectScale;
+        camT.localEulerAngles = new Vector3(cur.x + off.x, yaw + snapYaw, off.z);
 
         VisorCompat.StickVisor(p.localVisor, p.localVisorTargetPoint, 1.0f);
+    }
+
+    private static bool IsBrackenGrab(PlayerControllerB p, out bool grabbed)
+    {
+        grabbed = IsGrabbed(p);
+        return grabbed && p.inAnimationWithEnemy is FlowermanAI;
     }
 
     private static bool IsDeactivating(PlayerControllerB player, Camera? cam, CharacterController? controller, Transform? body)
@@ -312,6 +336,7 @@ internal static class PlayerControllerBPatch
     }
 
     private static Light[] _cachedSceneLights = Array.Empty<Light>();
+    private static int _cachedSceneLightCount;
     private static float _sceneLightScanTimer;
     private const float SceneLightScanInterval = 1.0f;
 
@@ -322,17 +347,14 @@ internal static class PlayerControllerBPatch
 
         _sceneLightScanTimer -= Time.deltaTime;
         if (_sceneLightScanTimer <= 0f)
-        {
-            _sceneLightScanTimer = SceneLightScanInterval;
-            _cachedSceneLights = UnityEngine.Object.FindObjectsOfType<Light>();
-        }
+            RescanSceneLights();
 
         Vector3 pos = player.transform.position;
         float r2 = (float)(radius * radius);
-        for (int i = 0; i < _cachedSceneLights.Length; i++)
+        for (int i = 0; i < _cachedSceneLightCount; i++)
         {
             Light light = _cachedSceneLights[i];
-            if (light == null || !light.isActiveAndEnabled || light.type == LightType.Directional || light.intensity <= 0f)
+            if (light == null || !light.isActiveAndEnabled || light.intensity <= 0f)
                 continue;
             Vector3 delta = light.transform.position - pos;
             delta.y = 0f;
@@ -340,6 +362,23 @@ internal static class PlayerControllerBPatch
         }
 
         return false;
+    }
+
+    private static void RescanSceneLights()
+    {
+        _sceneLightScanTimer = SceneLightScanInterval;
+
+        Light[] all = UnityEngine.Object.FindObjectsOfType<Light>();
+        int count = 0;
+        for (int i = 0; i < all.Length; i++)
+        {
+            Light light = all[i];
+            if (light != null && light.type != LightType.Directional)
+                all[count++] = light;
+        }
+
+        _cachedSceneLights = all;
+        _cachedSceneLightCount = count;
     }
 
     private static Vector3 RemoveVanillaDrunkSpeedScaling(Vector3 velocity, float drunkness)
