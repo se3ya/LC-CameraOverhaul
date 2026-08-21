@@ -36,6 +36,8 @@ internal static class ConfigManager
     private static ConfigEntry<bool> _enableWaterEffect = null!;
     private static ConfigEntry<bool> _enableLeviathanEffects = null!;
     private static ConfigEntry<bool> _enableJesterShake = null!;
+    private static ConfigEntry<bool> _enableForestGiantEffect = null!;
+    private static ConfigEntry<bool> _enableBrackenSnap = null!;
     private static ConfigEntry<bool> _enableFreezeEffect = null!;
     private static ConfigEntry<bool> _enableHealthCondition = null!;
 
@@ -72,6 +74,9 @@ internal static class ConfigManager
     private static ConfigEntry<float> _jesterStompTrauma = null!;
     private static ConfigEntry<float> _jesterStompRadius = null!;
     private static ConfigEntry<float> _jesterStompFalloff = null!;
+    private static ConfigEntry<float> _forestGiantStompTrauma = null!;
+    private static ConfigEntry<float> _forestGiantStompFalloff = null!;
+    private static ConfigEntry<float> _brackenSnapAngle = null!;
     private static ConfigEntry<float> _freezeStrength = null!;
     private static ConfigEntry<float> _freezeBuildSeconds = null!;
     private static ConfigEntry<float> _freezeRecoverSeconds = null!;
@@ -120,16 +125,21 @@ internal static class ConfigManager
         config.SaveOnConfigSet = false;
 
         var d = new ConfigData();
+        Dictionary<ConfigDefinition, string> preBind = SnapshotConfigEntries(config);
 
         const string general = "1. General";
         _masterStrength = BindFloat(config, general, "MasterStrength", (float)d.general.masterStrength, 0f, 3f,
             "Scales every effect.");
         _contextTransitionSmoothing = BindFloat(config, general, "ContextTransitionSmoothing", (float)d.general.contextTransitionSmoothing, 0f, 1f,
-            "How smoothly tuning blends when your movement context changes.");
+            "How smoothly the tuning blends when your movement changes.");
         _maxVelocityRoll = BindFloat(config, general, "MaxVelocityRoll", (float)d.general.maxVelocityRoll, 0f, 90f,
-            "Safety cap on speed-driven roll so very high speeds can't fling the view.");
+            "Safety cap in degrees on speed driven roll.");
         _maxVelocityPitch = BindFloat(config, general, "MaxVelocityPitch", (float)d.general.maxVelocityPitch, 0f, 90f,
-            "Safety cap on speed-driven pitch so very high speeds can't fling the view.");
+            "Safety cap in degrees on speed driven pitch.");
+        _enableHealthCondition = BindBool(config, general, "EnableHealthCondition", d.general.enableHealthCondition,
+            "When health is low, camera effects gradually fade out.");
+        _healthConditionTriggerLimit = BindFloat(config, general, "HealthConditionTriggerLimit", (float)d.general.healthConditionTriggerLimit, 0f, 100f,
+            "Below this health, camera effects start to fade out.");
 
         const string toggles = "2. Effect Toggles";
         _enableRoll = BindBool(config, toggles, "EnableRoll", d.general.enableRoll,
@@ -164,16 +174,6 @@ internal static class ConfigManager
             "Electric jitter while being zapped by a zap gun.");
         _enableSinkingTilt = BindBool(config, toggles, "EnableSinkingTilt", d.general.enableSinkingTilt,
             "Forward pitch tilt as you sink into quicksand.");
-        _enableWaterEffect = BindBool(config, toggles, "EnableWaterEffect", d.general.enableWaterEffect,
-            "Sloshy sway while wading and floaty drift while submerged in water.");
-        _enableLeviathanEffects = BindBool(config, toggles, "EnableLeviathanEffects", d.general.enableLeviathanEffects,
-            "Camera shake when an Earth Leviathan starts emerging, emerges back and light tremor while it's close.");
-        _enableJesterShake = BindBool(config, toggles, "EnableJesterShake", d.general.enableJesterShake,
-            "Camera shake on every stomp of popped Jester chasing, scaled by distance.");
-        _enableFreezeEffect = BindBool(config, toggles, "EnableFreezeEffect", d.general.enableFreezeEffect,
-            "Freezing that builds up while outside on a snowy moon.");
-        _enableHealthCondition = BindBool(config, toggles, "EnableHealthCondition", d.general.enableHealthCondition,
-            "When health is low, camera effects gradually fade out.");
 
         const string turning = "3. Turning Roll";
         _turningRollIntensity = BindFloat(config, turning, "Intensity", (float)d.general.turningRollIntensity, 0f, 5f,
@@ -254,14 +254,14 @@ internal static class ConfigManager
             "How far the camera dips down on a hard landing.");
         _landingWeightInfluence = BindFloat(config, shake, "LandingWeightInfluence", (float)d.general.landingWeightInfluence, 0f, 2f,
             "How much carry weight hardens landings.");
-        _healthConditionTriggerLimit = BindFloat(config, shake, "HealthConditionTriggerLimit", (float)d.general.healthConditionTriggerLimit, 0f, 100f,
-            "Below this health, camera effects start to fade out.");
 
         BindContext(config, "6. Walking", _walk, d.walking);
         BindContext(config, "7. Sprinting", _sprint, d.sprinting);
         BindContext(config, "8. Cruiser", _cruiser, d.cruiser);
 
         const string water = "9. Water";
+        _enableWaterEffect = BindBool(config, water, "Enabled", d.general.enableWaterEffect,
+            "Sloshy sway while wading and floaty drift while submerged in water.");
         _waterWadeStrength = BindFloat(config, water, "WadeStrength", (float)d.general.waterWadeStrength, 0f, 10f,
             "Strength of the heavy slosh sway while wading through water.");
         _waterSubmergedDriftStrength = BindFloat(config, water, "SubmergedDriftStrength", (float)d.general.waterSubmergedDriftStrength, 0f, 15f,
@@ -270,6 +270,8 @@ internal static class ConfigManager
             "Downward camera dip when entering water and when your head goes under.");
 
         const string leviathan = "A. Leviathan";
+        _enableLeviathanEffects = BindBool(config, leviathan, "Enabled", d.general.enableLeviathanEffects,
+            "Camera shake when an Earth Leviathan starts emerging, emerges back and light tremor while it's close.");
         _leviathanEmergeTrauma = BindFloat(config, leviathan, "EmergeTrauma", (float)d.general.leviathanEmergeTrauma, 0f, 6f,
             "Shake strength when an Earth Leviathan goes down after emerging nearby.");
         _leviathanEmergeKick = BindFloat(config, leviathan, "EmergeKick", (float)d.general.leviathanEmergeKick, 0f, 6f,
@@ -286,6 +288,8 @@ internal static class ConfigManager
             "Extra tremor while a nearby burrowed worm is playing its growl sound.");
 
         const string freeze = "B. Freeze";
+        _enableFreezeEffect = BindBool(config, freeze, "Enabled", d.general.enableFreezeEffect,
+            "Freezing that builds up while outside on a snowy moon.");
         _freezeStrength = BindFloat(config, freeze, "Strength", (float)d.general.freezeStrength, 0f, 1f,
             "Max freeze degrees at full cold.");
         _freezeBuildSeconds = BindFloat(config, freeze, "BuildSeconds", (float)d.general.freezeBuildSeconds, 1f, 600f,
@@ -300,12 +304,30 @@ internal static class ConfigManager
             "Freeze effect reduces while in the ship with the hangar doors are still open. It fully reduces once hangar close.");
 
         const string jester = "C. Jester";
+        _enableJesterShake = BindBool(config, jester, "Enabled", d.general.enableJesterShake,
+            "Camera shake on every stomp of popped Jester chasing, scaled by distance.");
         _jesterStompTrauma = BindFloat(config, jester, "StompTrauma", (float)d.general.jesterStompTrauma, 0f, 3f,
-            "Shake strength every stomp of popped Jester, scaled by distance.");
+            "Shake strength on each stomp of a popped Jester, before distance falloff.");
         _jesterStompRadius = BindFloat(config, jester, "StompRadius", (float)d.general.jesterStompRadius, 0f, 40f,
-            "Radius within popped Jesters stomps shake the camera.");
+            "Radius in meters within which a popped Jester's stomps shake the camera.");
         _jesterStompFalloff = BindFloat(config, jester, "StompFalloff", (float)d.general.jesterStompFalloff, 1f, 4f,
             "How strongly the stomp shake fades with distance.");
+
+        const string forestGiant = "D. Forest Giant";
+        _enableForestGiantEffect = BindBool(config, forestGiant, "Enabled", d.general.enableForestGiantEffect,
+            "Camera shake on every stomp of Forest Keeper, scaled by distance.");
+        _forestGiantStompTrauma = BindFloat(config, forestGiant, "StompTrauma", (float)d.general.forestGiantStompTrauma, 0f, 3f,
+            "Shake strength per stomp of chasing Forest Keeper.");
+        _forestGiantStompFalloff = BindFloat(config, forestGiant, "StompFalloff", (float)d.general.forestGiantStompFalloff, 1f, 4f,
+            "How strongly the stomp shake fades toward the edge of hearing.");
+
+        const string bracken = "E. Bracken";
+        _enableBrackenSnap = BindBool(config, bracken, "Enabled", d.general.enableBrackenSnap,
+            "Bracken snaps players camera.");
+        _brackenSnapAngle = BindFloat(config, bracken, "SnapAngle", (float)d.general.brackenSnapAngle, 0f, 180f,
+            "Degrees camera is snapped to the side.");
+
+        MigrateToFeatureLayout(preBind);
 
         Sync();
         config.SettingChanged += (_, _) => Sync();
@@ -375,6 +397,8 @@ internal static class ConfigManager
         g.enableWaterEffect = _enableWaterEffect.Value;
         g.enableLeviathanEffects = _enableLeviathanEffects.Value;
         g.enableJesterShake = _enableJesterShake.Value;
+        g.enableForestGiantEffect = _enableForestGiantEffect.Value;
+        g.enableBrackenSnap = _enableBrackenSnap.Value;
         g.enableFreezeEffect = _enableFreezeEffect.Value;
         g.enableHealthCondition = _enableHealthCondition.Value;
         g.turningRollIntensity = _turningRollIntensity.Value;
@@ -409,6 +433,9 @@ internal static class ConfigManager
         g.jesterStompTrauma = _jesterStompTrauma.Value;
         g.jesterStompRadius = _jesterStompRadius.Value;
         g.jesterStompFalloff = _jesterStompFalloff.Value;
+        g.forestGiantStompTrauma = _forestGiantStompTrauma.Value;
+        g.forestGiantStompFalloff = _forestGiantStompFalloff.Value;
+        g.brackenSnapAngle = _brackenSnapAngle.Value;
         g.freezeStrength = _freezeStrength.Value;
         g.freezeBuildSeconds = _freezeBuildSeconds.Value;
         g.freezeRecoverSeconds = _freezeRecoverSeconds.Value;
@@ -448,6 +475,56 @@ internal static class ConfigManager
         c.horizontalVelocitySmoothingFactor = e.HSmooth.Value;
         c.verticalVelocitySmoothingFactor = e.VSmooth.Value;
         c.cameraSmoothing = e.MouseSmoothing.Value;
+    }
+
+    private static Dictionary<ConfigDefinition, string> SnapshotConfigEntries(ConfigFile config)
+    {
+        var snapshot = new Dictionary<ConfigDefinition, string>();
+        try
+        {
+            PropertyInfo? orphanedEntriesProp = AccessTools.Property(typeof(ConfigFile), "OrphanedEntries");
+            if (orphanedEntriesProp != null &&
+                orphanedEntriesProp.GetValue(config) is Dictionary<ConfigDefinition, string> orphanedEntries)
+            {
+                foreach (KeyValuePair<ConfigDefinition, string> pair in orphanedEntries)
+                    snapshot[pair.Key] = pair.Value;
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Plugin.Log.LogWarning($"Could not read existing config for migration: {ex.Message}");
+        }
+        return snapshot;
+    }
+
+    private static void MigrateToFeatureLayout(Dictionary<ConfigDefinition, string> preBind)
+    {
+        if (preBind.Count == 0) return;
+
+        MigrateEntry(preBind, "2. Effect Toggles", "EnableWaterEffect", _enableWaterEffect);
+        MigrateEntry(preBind, "2. Effect Toggles", "EnableLeviathanEffects", _enableLeviathanEffects);
+        MigrateEntry(preBind, "2. Effect Toggles", "EnableFreezeEffect", _enableFreezeEffect);
+        MigrateEntry(preBind, "2. Effect Toggles", "EnableJesterShake", _enableJesterShake);
+        MigrateEntry(preBind, "2. Effect Toggles", "EnableForestGiantEffect", _enableForestGiantEffect);
+        MigrateEntry(preBind, "2. Effect Toggles", "EnableBrackenSnap", _enableBrackenSnap);
+        MigrateEntry(preBind, "2. Effect Toggles", "EnableHealthCondition", _enableHealthCondition);
+        MigrateEntry(preBind, "5. Screen Shake", "HealthConditionTriggerLimit", _healthConditionTriggerLimit);
+    }
+
+    private static void MigrateEntry<T>(Dictionary<ConfigDefinition, string> preBind, string oldSection, string oldKey, ConfigEntry<T> target)
+    {
+        if (preBind.ContainsKey(target.Definition)) return;
+        if (!preBind.TryGetValue(new ConfigDefinition(oldSection, oldKey), out string raw)) return;
+
+        try
+        {
+            target.Value = (T)TomlTypeConverter.ConvertToValue(raw, typeof(T));
+            Plugin.Log.LogInfo($"Migrated '{oldKey}' into the new '{target.Definition.Section}' section.");
+        }
+        catch (System.Exception ex)
+        {
+            Plugin.Log.LogWarning($"Could not migrate {oldSection}/{oldKey}: {ex.Message}");
+        }
     }
 
     private static void ClearOrphanedEntries(ConfigFile config)
