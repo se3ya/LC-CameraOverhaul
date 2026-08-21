@@ -61,6 +61,7 @@ internal sealed class CameraSystem
     private double _waterSubmergeSeverity;
     private double _leviathanTime;
     private double _leviathanIntensity;
+    private double _neckSnap;
     private double _freezeTime;
     private double _freezeDuration;
     private Vector3 _punch;
@@ -71,6 +72,8 @@ internal sealed class CameraSystem
     private static double Now => Time.timeAsDouble;
 
     public Vector3 OffsetEuler => (_offsetEuler * _master) + (_impairOffset * _masterBase) + _smoothing + ScreenShakes.EulerOffset;
+
+    public double NeckSnapYaw { get; private set; }
 
     public void Reset()
     {
@@ -109,6 +112,8 @@ internal sealed class CameraSystem
         _waterSubmergeSeverity = 0;
         _leviathanTime = 0;
         _leviathanIntensity = 0;
+        _neckSnap = 0;
+        NeckSnapYaw = 0;
         _freezeTime = 0;
         _freezeDuration = 0;
         _punch = Vector3.zero;
@@ -160,9 +165,45 @@ internal sealed class CameraSystem
         if (g.enableSway) IdleSwayOffset(dt, cfg);
         ApplyStatusEffects(in context, dt, cfg);
         ApplyMotionEffects(in context, dt, cfg);
+        UpdateNeckSnap(in context, dt, cfg);
 
         _prevPitch = context.pitch;
         _prevYaw = context.yaw;
+    }
+
+    private const double NECK_SNAP_IN_SECONDS = 0.28;
+    private const double NECK_SNAP_OUT_SECONDS = 0.3;
+
+    private void UpdateNeckSnap(in CameraContext context, double dt, ConfigData cfg)
+    {
+        double target = cfg.general.enableBrackenSnap && context.grabbedByBracken ? 1.0 : 0.0;
+        double duration = target > _neckSnap ? NECK_SNAP_IN_SECONDS : NECK_SNAP_OUT_SECONDS;
+        double step = duration > 0.0 ? dt / duration : 1.0;
+        _neckSnap = MathUtils.StepTowards(_neckSnap, target, step);
+
+        NeckSnapYaw = cfg.general.brackenSnapAngle * NeckSnapCurve(_neckSnap);
+    }
+
+    private static double NeckSnapCurve(double t)
+    {
+        const double anticipateUntil = 0.12;
+        const double whipUntil = 0.5;
+        const double cockBack = -0.09;
+        const double overshoot = 1.14;
+
+        if (t <= anticipateUntil)
+        {
+            double a = anticipateUntil > 0.0 ? t / anticipateUntil : 1.0;
+            return cockBack * (a * a * (3.0 - 2.0 * a));
+        }
+        if (t <= whipUntil)
+        {
+            double w = (t - anticipateUntil) / (whipUntil - anticipateUntil);
+            return cockBack + (overshoot - cockBack) * (w * w);
+        }
+        double s = (t - whipUntil) / (1.0 - whipUntil);
+        double settle = 1.0 - (1.0 - s) * (1.0 - s);
+        return overshoot + (1.0 - overshoot) * settle;
     }
 
     private void UpdateActionTime(in CameraContext context)
