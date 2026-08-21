@@ -22,4 +22,30 @@ internal static class PlayAudioAnimationEventPatch
         float factor = Mathf.Pow(proximity, (float)g.jesterStompFalloff);
         ScreenShakes.BumpTrauma((float)g.jesterStompTrauma * factor);
     }
+
+    [HarmonyPostfix]
+    [HarmonyPatch(nameof(PlayAudioAnimationEvent.PlayAudio1RandomClip))]
+    private static void PlayAudio1RandomClipPostfix(PlayAudioAnimationEvent __instance)
+    {
+        var g = ConfigManager.Data.general;
+        if (!g.enableScreenShake || !g.enableForestGiantEffect || g.forestGiantStompTrauma <= 0.0) return;
+
+        ForestGiantAI? giant = __instance.GetComponentInParent<ForestGiantAI>();
+        if (giant == null || giant.isEnemyDead) return;
+
+        AudioSource? src = __instance.audioToPlay;
+        if (src == null || src.maxDistance <= 0f) return;
+
+        var lp = StartOfRound.Instance?.localPlayerController;
+        if (lp == null || lp.gameplayCamera == null) return;
+
+        float minRange = src.minDistance;
+        float maxRange = src.maxDistance;
+        float dist = Vector3.Distance(lp.gameplayCamera.transform.position, src.transform.position);
+        if (dist >= maxRange) return;
+
+        float audible = dist <= minRange ? 1f : 1f - (dist - minRange) / Mathf.Max(0.01f, maxRange - minRange);
+        float factor = Mathf.Pow(audible, (float)g.forestGiantStompFalloff);
+        ScreenShakes.BumpTrauma((float)g.forestGiantStompTrauma * factor);
+    }
 }
