@@ -10,13 +10,16 @@ internal static class SandWormAIPatch
 
     [HarmonyPrefix]
     [HarmonyPatch("ShakePlayerCameraInProximity", new[] { typeof(Vector3) })]
-    private static void ShakePlayerCameraInProximityPrefix() => HUDManagerPatch.BeginSkip();
+    private static void ShakePlayerCameraInProximityPrefix()
+    {
+        if (ConfigManager.Data.general.enableLeviathanEffects) HUDManagerPatch.BeginSkip();
+    }
 
     [HarmonyPostfix]
     [HarmonyPatch("ShakePlayerCameraInProximity", new[] { typeof(Vector3) })]
     private static void ShakePlayerCameraInProximityPostfix(Vector3 pos)
     {
-        HUDManagerPatch.EndSkip();
+        if (ConfigManager.Data.general.enableLeviathanEffects) HUDManagerPatch.EndSkip();
 
         var g = ConfigManager.Data.general;
         if (!g.enableLeviathanEffects) return;
