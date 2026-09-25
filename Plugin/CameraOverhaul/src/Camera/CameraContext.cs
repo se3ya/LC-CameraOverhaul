@@ -28,12 +28,18 @@ internal struct CameraContext
     public bool hasActiveLight;
     public bool grabbedByEnemy;
     public bool grabbedByBracken;
+    public bool isFalling;
+    public bool gameBobEnabled;
+    public bool hasStaticCharge;
+    public float staticCharge;
+    public float carryWeight;
 
     public Vector3 velocity;
     public Vector3 forwardRelVelocity;
 
     public double pitch;
     public double yaw;
+    public double dtScale;
 
     public bool resetSmoothing;
 }
