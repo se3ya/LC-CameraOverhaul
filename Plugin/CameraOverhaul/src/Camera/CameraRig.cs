@@ -4,7 +4,7 @@ using GameNetcodeStuff;
 
 namespace CameraOverhaul;
 
-internal sealed class CameraSystem
+internal sealed class CameraRig
 {
     private const NoiseKind SwayNoise = NoiseKind.Fractal;
     private const NoiseKind ExhaustionNoise = NoiseKind.Fractal;
@@ -20,6 +20,8 @@ internal sealed class CameraSystem
     private const NoiseKind WaterDriftNoise = NoiseKind.OpenSimplex2;
     private const NoiseKind LeviathanNoise = NoiseKind.Fractal;
     private const NoiseKind FreezeNoise = NoiseKind.FrequencyMod;
+    private const NoiseKind FearNoise = NoiseKind.Fractal;
+    private const NoiseKind StaticNoise = NoiseKind.FrequencyMod;
 
     private Vector3 _offsetEuler;
     private Vector3 _impairOffset;
@@ -44,10 +46,14 @@ internal sealed class CameraSystem
     private double _insanityTime;
     private double _drunkTime;
     private double _criticalTime;
+    private double _criticalPulse;
+    private double _tinnitusTime;
     private double _poisonTime;
     private double _jetpackTime;
     private double _shockTime;
     private double _shipTime;
+    private double _shipAmp;
+    private double _shipPitch;
     private double _waterTime;
     private double _exhaustionSeverity;
     private double _criticalSeverity;
@@ -64,6 +70,20 @@ internal sealed class CameraSystem
     private double _neckSnap;
     private double _freezeTime;
     private double _freezeDuration;
+    private double _stepPhase = 1.0;
+    private double _stepInterval = 0.5;
+    private double _stepAge = 10.0;
+    private double _stepSign = 1.0;
+    private double _bobSpeed;
+    private double _bobGate;
+    private double _hunch;
+    private Vector3 _bob;
+    private double _scare;
+    private double _fearTime;
+    private double _fearSide = 1.0;
+    private double _staticSeverity;
+    private double _staticTime;
+    private double _landingSide = 1.0;
     private Vector3 _punch;
     private Vector3 _punchVel;
     private bool _msInit;
@@ -95,10 +115,14 @@ internal sealed class CameraSystem
         _insanityTime = 0;
         _drunkTime = 0;
         _criticalTime = 0;
+        _criticalPulse = 0;
+        _tinnitusTime = 0;
         _poisonTime = 0;
         _jetpackTime = 0;
         _shockTime = 0;
         _shipTime = 0;
+        _shipAmp = 0;
+        _shipPitch = 0;
         _waterTime = 0;
         _exhaustionSeverity = 0;
         _criticalSeverity = 0;
@@ -116,30 +140,78 @@ internal sealed class CameraSystem
         NeckSnapYaw = 0;
         _freezeTime = 0;
         _freezeDuration = 0;
+        _stepPhase = 1.0;
+        _stepInterval = 0.5;
+        _stepAge = 10.0;
+        _stepSign = 1.0;
+        _bobSpeed = 0;
+        _bobGate = 0;
+        _hunch = 0;
+        _bob = Vector3.zero;
+        _scare = 0;
+        _fearTime = 0;
+        _fearSide = 1.0;
+        _staticSeverity = 0;
+        _staticTime = 0;
+        _landingSide = 1.0;
         _punch = Vector3.zero;
         _punchVel = Vector3.zero;
         _msInit = false;
         ScreenShakes.Reset();
     }
 
-    private const double PunchImpulseScale = 15.0;
+    private const double PunchImpulseScale = 10.0938;
 
     public void AddLandingImpulse(double severity)
         => _punchVel.x += (float)(ConfigManager.Data.general.landingDipStrength * severity * PunchImpulseScale);
 
-    public void AddWaterSplash(double dipDegrees)
-        => _punchVel.x += (float)(dipDegrees * PunchImpulseScale);
+    private const double LANDING_SIDE_SPEED = 1.0;
+    private const double LANDING_YAW_SHARE = 0.5;
 
-    private const double RecoilImpulseScale = 35.0;
+    private const double FLINCH_ROLL = 3.0;
+    private const double FLINCH_PITCH = 1.5;
+    private const double FLINCH_YAW = 0.9;
 
-    public void AddRecoil(double kickDeg)
+    public void AddScare(double severity)
     {
-        float kick = -(float)(kickDeg * RecoilImpulseScale);
+        var g = ConfigManager.Data.general;
+        if (!g.enableFearResponse) return;
+
+        double s = MathUtils.Clamp01(severity);
+        if (s > _scare) _scare = s;
+
+        double kick = g.fearFlinch * s * PunchImpulseScale;
+        if (kick <= 0.0) return;
+
+        _fearSide = -_fearSide;
+        _punchVel.x += (float)(kick * FLINCH_PITCH);
+        _punchVel.y += (float)(_fearSide * kick * FLINCH_YAW);
+        _punchVel.z -= (float)(_fearSide * kick * FLINCH_ROLL);
+    }
+
+    public void AddLandingTilt(double severity, double sideSpeed)
+    {
+        double tilt = ConfigManager.Data.general.landingTiltStrength * severity * PunchImpulseScale;
+        if (tilt <= 0.0) return;
+
+        _landingSide = Math.Abs(sideSpeed) >= LANDING_SIDE_SPEED ? Math.Sign(sideSpeed) : -_landingSide;
+        _punchVel.z -= (float)(_landingSide * tilt);
+        _punchVel.y += (float)(_landingSide * tilt * LANDING_YAW_SHARE);
+    }
+
+    public void AddWaterSplash(double dipAngle)
+        => _punchVel.x += (float)(dipAngle * PunchImpulseScale);
+
+    private const double RecoilImpulseScale = 23.5522;
+
+    public void AddRecoil(double kickAngle)
+    {
+        float kick = -(float)(kickAngle * RecoilImpulseScale);
         if (kick < _punchVel.x) _punchVel.x = kick;
     }
 
-    public void AddDamageKick(Vector3 degrees)
-        => _punchVel += degrees * (float)PunchImpulseScale;
+    public void AddDamageKick(Vector3 strength)
+        => _punchVel += strength * (float)PunchImpulseScale;
 
     public void OnCameraUpdate(in CameraContext context, double dt, PlayerControllerB player)
     {
@@ -158,7 +230,7 @@ internal sealed class CameraSystem
         _impairOffset = Vector3.zero;
         _smoothing = Vector3.zero;
 
-        ScreenShakes.OnCameraUpdate(dt);
+        ScreenShakes.OnCameraUpdate(dt, _masterBase);
         UpdateActionTime(in context);
 
         CameraSmoothingOffset(in context, dt);
@@ -171,17 +243,17 @@ internal sealed class CameraSystem
         _prevYaw = context.yaw;
     }
 
-    private const double NECK_SNAP_IN_SECONDS = 0.28;
-    private const double NECK_SNAP_OUT_SECONDS = 0.3;
+    private const double NECK_SNAP_IN_DURATION = 0.28;
+    private const double NECK_SNAP_OUT_DURATION = 0.3;
 
     private void UpdateNeckSnap(in CameraContext context, double dt, ConfigData cfg)
     {
         double target = cfg.general.enableBrackenSnap && context.grabbedByBracken ? 1.0 : 0.0;
-        double duration = target > _neckSnap ? NECK_SNAP_IN_SECONDS : NECK_SNAP_OUT_SECONDS;
+        double duration = target > _neckSnap ? NECK_SNAP_IN_DURATION : NECK_SNAP_OUT_DURATION;
         double step = duration > 0.0 ? dt / duration : 1.0;
         _neckSnap = MathUtils.StepTowards(_neckSnap, target, step);
 
-        NeckSnapYaw = cfg.general.brackenSnapAngle * NeckSnapCurve(_neckSnap);
+        NeckSnapYaw = MathUtils.Clamp(cfg.general.brackenSnapAngle * NeckSnapCurve(_neckSnap) * _masterBase, -180.0, 180.0);
     }
 
     private static double NeckSnapCurve(double t)
@@ -231,6 +303,8 @@ internal sealed class CameraSystem
         if (g.enableWaterEffect) WaterOffset(in context, dt, cfg);
         if (g.enableLeviathanEffects) LeviathanOffset(in context, dt, cfg);
         if (g.enableFreezeEffect) FreezeOffset(in context, dt, cfg);
+        FearOffset(dt, cfg);
+        StaticChargeOffset(in context, dt, cfg);
     }
 
     private void ApplyMotionEffects(in CameraContext context, double dt, ConfigData cfg)
@@ -242,13 +316,86 @@ internal sealed class CameraSystem
             VerticalVelocityPitchOffset(in context, dt, g.maxVelocityPitch);
             ForwardVelocityPitchOffset(in context, dt, g.maxVelocityPitch);
         }
+        else
+        {
+            _prevVerticalPitch = 0;
+            _prevForwardPitch = 0;
+        }
         PunchOffset(dt);
         if (g.enableRoll)
         {
             TurningRollOffset(in context, dt, cfg);
             StrafingRollOffset(in context, dt, g.maxVelocityRoll);
         }
+        else
+        {
+            _turningRollTarget = 0;
+            _prevStrafingRoll = 0;
+        }
+        WalkBobOffset(in context, dt, cfg);
     }
+
+    private const double BOB_WALK_SPEED = 0.23;
+    private const double BOB_SPRINT_SPEED = 0.50;
+    private const double BOB_SPEED_SMOOTHING = 0.008;
+    private const double BOB_SMOOTH_TIME = 0.025;
+    private const double MIN_STEP_GAP = 0.12;
+    private const double MAX_STEP_GAP = 1.1;
+    private const double STEP_PHASE_LEAD = 0.85;
+    private const double HEAVY_LOAD = 2.0;
+    private const double HUNCH_SMOOTHING = 0.25;
+
+    public void OnFootstep()
+    {
+        if (_stepAge < MIN_STEP_GAP) return;
+        if (_stepAge <= MAX_STEP_GAP)
+            _stepInterval += (_stepAge - _stepInterval) * 0.35;
+        _stepAge = 0.0;
+        _stepPhase = 0.0;
+        _stepSign = -_stepSign;
+    }
+
+    private void WalkBobOffset(in CameraContext context, double dt, ConfigData cfg)
+    {
+        var g = cfg.general;
+        _stepAge += dt;
+
+        bool active = g.enableWalkBob && context.gameBobEnabled;
+        _stepPhase = active
+            ? Math.Min(_stepPhase + (dt / (_stepInterval * STEP_PHASE_LEAD)), 1.0)
+            : 1.0;
+
+        double horizontal = active
+            ? Math.Sqrt((context.velocity.x * context.velocity.x) + (context.velocity.z * context.velocity.z))
+            : 0.0;
+        _bobSpeed = MathUtils.Damp(_bobSpeed, horizontal, BOB_SPEED_SMOOTHING, dt);
+
+        double gate = !active || context.inVehicle || context.isClimbing || context.grabbedByEnemy
+            || context.criticallyInjured || context.isFalling ? 0.0 : 1.0;
+        _bobGate = MathUtils.Damp(_bobGate, gate, BOB_SPEED_SMOOTHING, dt);
+
+        double load = Math.Max(1.0, context.carryWeight);
+        double pace = _bobSpeed * load;
+        double walk = MathUtils.Clamp01(pace / BOB_WALK_SPEED);
+        double sprint = MathUtils.Clamp01((pace - BOB_WALK_SPEED) / (BOB_SPRINT_SPEED - BOB_WALK_SPEED));
+        double env = _bobGate * walk * (1.0 + (sprint * (g.walkBobSprintMultiplier - 1.0)));
+
+        double heavy = MathUtils.Clamp01((load - 1.0) / (HEAVY_LOAD - 1.0));
+        _hunch = MathUtils.Damp(_hunch, g.carryHunch * heavy * _bobGate * walk, HUNCH_SMOOTHING, dt);
+        _offsetEuler.x += (float)_hunch;
+
+        double pitch = Math.Sin(2.0 * Math.PI * _stepPhase) * g.walkBobPitch * env;
+        double roll = Math.Sin(Math.PI * _stepPhase) * _stepSign * g.walkBobRoll * env;
+
+        double step = 1.0 - Math.Exp(-dt / BOB_SMOOTH_TIME);
+        _bob.x += (float)((pitch - _bob.x) * step);
+        _bob.z += (float)((roll - _bob.z) * step);
+
+        _offsetEuler.x += _bob.x;
+        _offsetEuler.z += _bob.z;
+    }
+
+    private const double MAX_CONTEXT_SMOOTHING = 0.995;
 
     private void UpdateContext(in CameraContext context, double dt, ConfigData cfg)
     {
@@ -258,9 +405,8 @@ internal sealed class CameraSystem
             : context.isSprinting ? cfg.sprinting
             : cfg.walking;
 
-        double step = cfg.general.contextTransitionSmoothing > 0
-            ? MathUtils.DampStep(cfg.general.contextTransitionSmoothing, dt)
-            : 1.0;
+        double smoothing = MathUtils.Clamp(cfg.general.contextTransitionSmoothing, 0.0, MAX_CONTEXT_SMOOTHING);
+        double step = smoothing > 0 ? MathUtils.DampStep(smoothing, dt) : 1.0;
         _ctxCfg.Lerp(_ctxCfg, target, step);
     }
 
@@ -271,13 +417,32 @@ internal sealed class CameraSystem
     private const float PunchDamping = 22f;
     private const float MaxPunch = 60f;
 
+    private static readonly double PunchOmega = Math.Sqrt(PunchStiffness);
+    private static readonly double PunchZeta = PunchDamping / (2.0 * Math.Sqrt(PunchStiffness));
+    private static readonly double PunchOmegaDamped = PunchOmega * Math.Sqrt(1.0 - (PunchZeta * PunchZeta));
+
     private void PunchOffset(double dt)
     {
-        float fdt = (float)dt;
-        _punchVel += ((-PunchStiffness * _punch) - (PunchDamping * _punchVel)) * fdt;
-        _punch += _punchVel * fdt;
+        double decay = Math.Exp(-PunchZeta * PunchOmega * dt);
+        double cos = Math.Cos(PunchOmegaDamped * dt);
+        double sin = Math.Sin(PunchOmegaDamped * dt);
+
+        _punch.x = StepPunchAxis(_punch.x, ref _punchVel.x, decay, cos, sin);
+        _punch.y = StepPunchAxis(_punch.y, ref _punchVel.y, decay, cos, sin);
+        _punch.z = StepPunchAxis(_punch.z, ref _punchVel.z, decay, cos, sin);
+
         _punch = Vector3.ClampMagnitude(_punch, MaxPunch);
         _offsetEuler += _punch;
+    }
+
+    private static float StepPunchAxis(float position, ref float velocity, double decay, double cos, double sin)
+    {
+        double damped = PunchZeta * PunchOmega;
+        double nextPosition = decay * ((position * cos) + (((velocity + (damped * position)) / PunchOmegaDamped) * sin));
+        double nextVelocity = decay * ((velocity * cos)
+            - (((((PunchOmega * PunchOmega) * position) + (damped * velocity)) / PunchOmegaDamped) * sin));
+        velocity = (float)nextVelocity;
+        return (float)nextPosition;
     }
 
     private const double BASE_VERTICAL_PITCH_SMOOTHING = 0.00004;
@@ -323,7 +488,7 @@ internal sealed class CameraSystem
         double intensity = BASE_TURNING_ROLL_INTENSITY * cfg.general.turningRollIntensity;
         double accumulation = BASE_TURNING_ROLL_ACCUMULATION * cfg.general.turningRollAccumulation;
 
-        double yawDelta = MathUtils.UnwrapStep(_prevYaw - context.yaw);
+        double yawDelta = MathUtils.UnwrapStep(_prevYaw - context.yaw) * context.dtScale;
         if (context.resetSmoothing) yawDelta = 0;
 
         _turningRollTarget = MathUtils.Damp(_turningRollTarget, 0, decaySmoothing, dt);
@@ -385,7 +550,6 @@ internal sealed class CameraSystem
         _offsetEuler.y += (float)(Noise.Sample(SwayNoise, _swayTime, 1337.0) * scaledIntensity);
     }
 
-    // hevy breathing sway
     private void ExhaustionOffset(in CameraContext context, double dt, ConfigData cfg)
     {
         double targetExhaustion = 0.0;
@@ -403,11 +567,10 @@ internal sealed class CameraSystem
 
         _exhaustionTime += dt * 0.5;
         double intensity = cfg.general.exhaustionSwayMultiplier * _exhaustionSeverity * 0.5;
-        _offsetEuler.x += (float)(Noise.Sample(ExhaustionNoise, _exhaustionTime, 5500.0) * intensity);
-        _offsetEuler.y += (float)(Noise.Sample(ExhaustionNoise, _exhaustionTime * 1.1, 6600.0) * intensity * 0.7);
+        _impairOffset.x += (float)(Noise.Sample(ExhaustionNoise, _exhaustionTime, 5500.0) * intensity);
+        _impairOffset.y += (float)(Noise.Sample(ExhaustionNoise, _exhaustionTime * 1.1, 6600.0) * intensity * 0.7);
     }
 
-    // erratic sway
     private void InsanityOffset(in CameraContext context, double dt, ConfigData cfg)
     {
         double threshold = cfg.general.insanityTriggerThreshold;
@@ -418,30 +581,30 @@ internal sealed class CameraSystem
 
         _insanityTime += dt * (1.0 + (panic * 1.25));
         double intensity = cfg.general.insanitySwayMultiplier * panic * 0.4;
-        _offsetEuler.x += (float)(Noise.Sample(InsanityNoise, _insanityTime, 7700.0) * intensity);
-        _offsetEuler.y += (float)(Noise.Sample(InsanityNoise, _insanityTime * 1.2, 8800.0) * intensity * 0.6);
+        _impairOffset.x += (float)(Noise.Sample(InsanityNoise, _insanityTime, 7700.0) * intensity);
+        _impairOffset.y += (float)(Noise.Sample(InsanityNoise, _insanityTime * 1.2, 8800.0) * intensity * 0.6);
     }
 
-    // disorienting sway
+    private const double TINNITUS_SPEED = 1.25;
+
     private void TinnitusOffset(double dt, ConfigData cfg)
     {
         if (SoundManager.Instance == null || SoundManager.Instance.earsRingingTimer <= 0f) return;
-
         double severity = MathUtils.Clamp01(SoundManager.Instance.earsRingingTimer / 5.0);
-        double t = Now;
-        const double freq = 1.25;
+
+        _tinnitusTime += dt * TINNITUS_SPEED;
 
         double intensity = cfg.general.tinnitusSwayMultiplier * severity;
-        _offsetEuler.x += (float)(Noise.Sample(TinnitusNoise, t * freq, 800.0) * intensity);
-        _offsetEuler.y += (float)(Noise.Sample(TinnitusNoise, t * freq * 0.8, 900.0) * intensity);
-        _offsetEuler.z += (float)(Noise.Sample(TinnitusNoise, t * freq * 1.1, 1000.0) * intensity * 0.5);
+        _impairOffset.x += (float)(Noise.Sample(TinnitusNoise, _tinnitusTime, 800.0) * intensity);
+        _impairOffset.y += (float)(Noise.Sample(TinnitusNoise, _tinnitusTime * 0.8, 900.0) * intensity);
+        _impairOffset.z += (float)(Noise.Sample(TinnitusNoise, _tinnitusTime * 1.1, 1000.0) * intensity * 0.5);
     }
 
     private const double DRUNK_SEVERITY_SMOOTHING = 0.06;
     private const double DRUNK_OFFSET_SMOOTHING = 0.025;
-    private const double DRUNK_BASE_ROLL_DEG = 6.5;
-    private const double DRUNK_BASE_PITCH_DEG = 3.0;
-    private const double DRUNK_BASE_YAW_DEG = 2.2;
+    private const double DRUNK_BASE_ROLL = 6.5;
+    private const double DRUNK_BASE_PITCH = 3.0;
+    private const double DRUNK_BASE_YAW = 2.2;
     private const double DRUNK_INTENSITY_NORMALIZER = 6.0;
     private const double DRUNK_NOISE_SPEED_MIN = 0.18;
     private const double DRUNK_NOISE_SPEED_MAX = 0.42;
@@ -465,9 +628,9 @@ internal sealed class CameraSystem
         double speed = MathUtils.Lerp(DRUNK_NOISE_SPEED_MIN, DRUNK_NOISE_SPEED_MAX, severityCurve);
         _drunkTime += dt * speed;
 
-        double rollLimit = DRUNK_BASE_ROLL_DEG * intensityScale;
-        double pitchLimit = DRUNK_BASE_PITCH_DEG * intensityScale;
-        double yawLimit = DRUNK_BASE_YAW_DEG * intensityScale;
+        double rollLimit = DRUNK_BASE_ROLL * intensityScale;
+        double pitchLimit = DRUNK_BASE_PITCH * intensityScale;
+        double yawLimit = DRUNK_BASE_YAW * intensityScale;
 
         double rollTarget = Noise.Sample(DrunknessNoise, _drunkTime * 0.84, 3000.0) * rollLimit * severityCurve;
         double pitchTarget = Noise.Sample(DrunknessNoise, _drunkTime * 0.58, 4000.0) * pitchLimit * severityCurve;
@@ -482,7 +645,6 @@ internal sealed class CameraSystem
         _impairOffset.y += (float)_drunkYaw;
     }
 
-    // heavy, slow, pulsing sway
     private void CriticalInjuryOffset(in CameraContext context, double dt, ConfigData cfg)
     {
         double target = context.criticallyInjured ? 1.0 : 0.0;
@@ -490,15 +652,14 @@ internal sealed class CameraSystem
         if (_criticalSeverity <= 0.01) return;
 
         _criticalTime += dt * 0.35;
-        // slow labored-breathing throb so the heavy sway swells and settles
-        double pulse = 0.75 + (0.25 * Math.Sin(Now * 2.4));
+        _criticalPulse += dt * 2.4;
+        double pulse = 0.75 + (0.25 * Math.Sin(_criticalPulse));
         double intensity = cfg.general.criticalInjurySwayMultiplier * _criticalSeverity * pulse;
         _impairOffset.x += (float)(Noise.Sample(CriticalNoise, _criticalTime, 9100.0) * intensity);
         _impairOffset.y += (float)(Noise.Sample(CriticalNoise, _criticalTime * 1.1, 9200.0) * intensity * 0.8);
         _impairOffset.z += (float)(Noise.Sample(CriticalNoise, _criticalTime * 0.6, 9300.0) * intensity * 0.4);
     }
 
-    // fast, erratic jitter
     private void PoisonOffset(in CameraContext context, double dt, ConfigData cfg)
     {
         if (context.poison <= 0f) return;
@@ -510,7 +671,6 @@ internal sealed class CameraSystem
         _impairOffset.z += (float)(Noise.Sample(PoisonNoise, _poisonTime * 0.9, 10300.0) * intensity * 0.5);
     }
 
-    // rolling, unstable flight sway.
     private void JetpackTurbulenceOffset(in CameraContext context, double dt, ConfigData cfg)
     {
         double target = context.isUsingJetpack ? 1.0 : 0.0;
@@ -524,7 +684,6 @@ internal sealed class CameraSystem
         _impairOffset.z += (float)(Noise.Sample(JetpackNoise, _jetpackTime * 0.8, 11300.0) * intensity * 0.6);
     }
 
-    // harsh electric buzz
     private void ShockOffset(in CameraContext context, double dt, ConfigData cfg)
     {
         double target = context.isBeingShocked ? 1.0 : 0.0;
@@ -538,13 +697,12 @@ internal sealed class CameraSystem
         _impairOffset.z += (float)(Noise.Sample(ShockNoise, _shockTime * 0.9, 12300.0) * intensity * 0.7);
     }
 
-    // pitch the view down as the player sinks
     private void SinkingTiltOffset(in CameraContext context, ConfigData cfg)
     {
         if (context.sinkingValue <= 0f) return;
 
         double tilt = MathUtils.Clamp01(context.sinkingValue) * cfg.general.sinkingTiltStrength;
-        _impairOffset.x += (float)tilt; // +x pitches the view down
+        _impairOffset.x += (float)tilt;
     }
 
     private const double WATER_WADE_SMOOTHING = 0.06;
@@ -612,8 +770,8 @@ internal sealed class CameraSystem
             : 0.0;
         if (context.hasActiveLight)
             target *= 1.0 - cfg.general.freezeLightReduce;
-        double lenSeconds = target > _freezeDuration ? cfg.general.freezeBuildSeconds : cfg.general.freezeRecoverSeconds;
-        double step = lenSeconds > 0.0 ? dt / lenSeconds : 1.0;
+        double rampTime = target > _freezeDuration ? cfg.general.freezeBuildTime : cfg.general.freezeRecoverTime;
+        double step = rampTime > 0.0 ? dt / rampTime : 1.0;
         _freezeDuration = MathUtils.StepTowards(_freezeDuration, target, step);
         if (_freezeDuration <= 0.01) return;
 
@@ -626,44 +784,100 @@ internal sealed class CameraSystem
         _impairOffset.z += (float)(Noise.Sample(FreezeNoise, _freezeTime * 0.9, 16300.0) * intensity * 0.8);
     }
 
-    private const double SHIP_SHAKE_DEG = 0.85;
+    private const double SCARE_FADE = 1.6;
+    private const double FEAR_TREMOR_SPEED = 8.0;
+
+    private void FearOffset(double dt, ConfigData cfg)
+    {
+        var g = cfg.general;
+        if (!g.enableFearResponse)
+        {
+            _scare = 0;
+            return;
+        }
+
+        _scare *= Math.Exp(-dt / SCARE_FADE);
+
+        double tremor = _scare * g.fearTremor;
+        if (tremor <= 0.0001) return;
+
+        _fearTime += dt * FEAR_TREMOR_SPEED;
+        _impairOffset.x += (float)(Noise.Sample(FearNoise, _fearTime, 17100.0) * tremor);
+        _impairOffset.y += (float)(Noise.Sample(FearNoise, _fearTime * 1.1, 17200.0) * tremor * 0.7);
+        _impairOffset.z += (float)(Noise.Sample(FearNoise, _fearTime * 0.9, 17300.0) * tremor * 0.5);
+    }
+
+    private const double STATIC_FLOOR = 0.35;
+    private const double STATIC_SPEED = 14.0;
+    private const double STATIC_SMOOTHING = 0.02;
+
+    private void StaticChargeOffset(in CameraContext context, double dt, ConfigData cfg)
+    {
+        double strength = cfg.general.enableLightningEffect ? cfg.general.lightningTremor : 0.0;
+        double target = 0.0;
+        if (strength > 0.0 && context.hasStaticCharge)
+        {
+            double charge = context.staticCharge;
+            target = STATIC_FLOOR + ((1.0 - STATIC_FLOOR) * charge * charge);
+        }
+
+        _staticSeverity = MathUtils.Damp(_staticSeverity, target, STATIC_SMOOTHING, dt);
+        if (strength <= 0.0 || _staticSeverity <= 0.001) return;
+
+        _staticTime += dt * STATIC_SPEED;
+        double intensity = strength * _staticSeverity;
+        _impairOffset.x += (float)(Noise.Sample(StaticNoise, _staticTime, 18100.0) * intensity);
+        _impairOffset.y += (float)(Noise.Sample(StaticNoise, _staticTime * 1.1, 18200.0) * intensity);
+        _impairOffset.z += (float)(Noise.Sample(StaticNoise, _staticTime * 0.9, 18300.0) * intensity * 0.6);
+    }
+
+    private const double SHIP_SHAKE_ANGLE = 0.85;
     private const double SHIP_RUMBLE_SPEED = 9.0;
     private const double SHIP_FORWARD_LURCH = 1.2;
     private const double SHIP_RISE_PITCH = 0.8;
+    private const double SHIP_FADE_SMOOTHING = 0.02;
 
     private void ShipMotionOffset(in CameraContext context, double dt, ConfigData cfg)
     {
         bool takingOff = context.shipTakeoffPhase >= 0f && cfg.general.shipTakeoffShakeStrength > 0.0;
         bool landing = context.shipLandingPhase >= 0f && cfg.general.shipLandingShakeStrength > 0.0;
-        if (!takingOff && !landing) return;
 
-        double phase, strength, env, dirPitch;
-        if (takingOff)
+        double ampTarget = 0.0;
+        double pitchTarget = 0.0;
+
+        if (takingOff || landing)
         {
-            phase = MathUtils.Clamp01(context.shipTakeoffPhase);
-            strength = cfg.general.shipTakeoffShakeStrength;
-            env = phase * phase;
-            double forward = Math.Max(0.0, 1.0 - (phase * 3.0));
-            dirPitch = ((forward * SHIP_FORWARD_LURCH) + (env * SHIP_RISE_PITCH)) * strength;
-        }
-        else
-        {
-            phase = MathUtils.Clamp01(context.shipLandingPhase);
-            strength = cfg.general.shipLandingShakeStrength;
-            env = Math.Sin(phase * Math.PI);
-            dirPitch = env * SHIP_FORWARD_LURCH * strength;
+            double phase, strength, env;
+            if (takingOff)
+            {
+                phase = MathUtils.Clamp01(context.shipTakeoffPhase);
+                strength = cfg.general.shipTakeoffShakeStrength;
+                env = phase * phase;
+                double forward = Math.Max(0.0, 1.0 - (phase * 3.0));
+                pitchTarget = ((forward * SHIP_FORWARD_LURCH) + (env * SHIP_RISE_PITCH)) * strength;
+            }
+            else
+            {
+                phase = MathUtils.Clamp01(context.shipLandingPhase);
+                strength = cfg.general.shipLandingShakeStrength;
+                env = Math.Sin(phase * Math.PI);
+                pitchTarget = env * SHIP_FORWARD_LURCH * strength;
+            }
+            ampTarget = strength * env * SHIP_SHAKE_ANGLE;
         }
 
-        double amp = strength * env * SHIP_SHAKE_DEG;
-        if (amp <= 0.0 && dirPitch == 0.0) return;
+        _shipAmp = MathUtils.Damp(_shipAmp, ampTarget, SHIP_FADE_SMOOTHING, dt);
+        _shipPitch = MathUtils.Damp(_shipPitch, pitchTarget, SHIP_FADE_SMOOTHING, dt);
+        if (_shipAmp <= 0.0001 && Math.Abs(_shipPitch) <= 0.0001) return;
 
         _shipTime += dt * SHIP_RUMBLE_SPEED;
-        _offsetEuler.x += (float)((Noise.Sample(ShipNoise, _shipTime, 13100.0) * amp) + dirPitch);
-        _offsetEuler.y += (float)(Noise.Sample(ShipNoise, _shipTime * 1.1, 13200.0) * amp * 0.7);
-        _offsetEuler.z += (float)(Noise.Sample(ShipNoise, _shipTime * 0.9, 13300.0) * amp * 0.8);
+        _offsetEuler.x += (float)((Noise.Sample(ShipNoise, _shipTime, 13100.0) * _shipAmp) + _shipPitch);
+        _offsetEuler.y += (float)(Noise.Sample(ShipNoise, _shipTime * 1.1, 13200.0) * _shipAmp * 0.7);
+        _offsetEuler.z += (float)(Noise.Sample(ShipNoise, _shipTime * 0.9, 13300.0) * _shipAmp * 0.8);
     }
 
     private const double BASE_MOUSE_SMOOTHING = 16.0;
+    private const double MAX_SMOOTHING_LAG = 90.0;
     private const double MOUSE_SMOOTHING_THRESHOLD = 0.001;
 
     private void CameraSmoothingOffset(in CameraContext context, double dt)
@@ -696,6 +910,8 @@ internal sealed class CameraSystem
         double step = 1.0 - Math.Exp(-k * Math.Max(0.0, dt));
         _smYaw += (_contYaw - _smYaw) * step;
         _smPitch += (_contPitch - _smPitch) * step;
+        _smYaw = _contYaw + MathUtils.Clamp(_smYaw - _contYaw, -MAX_SMOOTHING_LAG, MAX_SMOOTHING_LAG);
+        _smPitch = _contPitch + MathUtils.Clamp(_smPitch - _contPitch, -MAX_SMOOTHING_LAG, MAX_SMOOTHING_LAG);
 
         _smoothing.y += (float)MathUtils.UnwrapStep(_smYaw - yawNow);
         _smoothing.x += (float)MathUtils.UnwrapStep(_smPitch - pitchNow);
