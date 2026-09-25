@@ -4,12 +4,12 @@ namespace CameraOverhaul;
 
 internal enum NoiseKind
 {
-    Simplex,         // default for gentle sway.
-    OpenSimplex2,    // improved gradient noise, very low directional artifacts.
-    Perlin,          // unity built in, cheap. good for subtle secondary motion.
-    PerlinWorley,    // soft.
-    Fractal,         // 3 octave simplex fBm.
-    FrequencyMod,    // harsh, rattly
+    Simplex,
+    OpenSimplex2,
+    Perlin,
+    PerlinWorley,
+    Fractal,
+    FrequencyMod,
 }
 
 internal static class Noise
@@ -66,7 +66,6 @@ internal static class Noise
 
     private static float Hash01(int i, float seed)
     {
-        // integer hash to [0,1]
         int n = i ^ (int)(seed * 8192f);
         n = (n << 13) ^ n;
         n = (n * (((n * n) * 15731) + 789221)) + 1376312589;
