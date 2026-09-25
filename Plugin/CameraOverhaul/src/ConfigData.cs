@@ -5,13 +5,15 @@ internal sealed class ConfigData
     public sealed class General
     {
         public double masterStrength = 1.0;
-        public double contextTransitionSmoothing = 0.1;
+        public double contextTransitionSmoothing = 0.6;
 
         public bool enableRoll = true;      // strafing lean and turning roll
         public bool enablePitch = true;     // forward/back and vertical velocity pitch
         public bool enableSway = true;      // idle camera sway while standing still
+        public bool enableWalkBob = true;
         public bool enableScreenShake = true;       // screen shake from explosions, hard landings and taking damage.
         public bool enableLandingDip = true;        // quick downward pitch punch when player land hard
+        public bool enableJumpKick = true;
         public bool enableWeaponShake = true;       // gun fire rattle + recoil kick
         public bool enableMeleeWeaponShake = true;  // shovel swing kick
         public bool enableTinnitusEffect = true;    // camera sway/disorientation on ringing ears
@@ -30,6 +32,11 @@ internal sealed class ConfigData
         public bool enableBrackenSnap = true;       // snaps camera sideways when Bracken kills player
         public bool enableFreezeEffect = true;      // freeze while outside on a snowy moon
         public bool enableHealthCondition = true;      // camera effects scale down when injured
+        public bool enableVanillaShakeEvents = true;
+        public bool enableFearResponse = true;
+        public bool enableKnockbackKick = true;
+        public bool followGameBobSetting = true;
+        public bool enableLightningEffect = true;
 
         public double turningRollAccumulation = 2.5;        // how quickly fast turning builds up the lean
         public double turningRollIntensity = 3.0;       // maximum roll the camera leans when you move the view left/right
@@ -40,6 +47,10 @@ internal sealed class ConfigData
         public double cameraSwayFadeInDelay = 2.0;      // seconds of stillness before sway starts fading in
         public double cameraSwayFadeInLength = 5.0;     // seconds for sway to reach full strength once it starts fading in
         public double cameraSwayFadeOutLength = 0.75;   // seconds for sway to fade back out when you start moving
+        public double walkBobPitch = 0.35;
+        public double walkBobRoll = 0.30;
+        public double walkBobSprintMultiplier = 1.5;
+        public double carryHunch = 1.5;
         public double tinnitusSwayMultiplier = 10.0; // how much stronger sway is when ears ring
         public double exhaustionSwayMultiplier = 4.0; // how much stronger sway is when exhausted
         public double exhaustionTriggerStamina = 0.4; // below what stamina level exhaustion begins
@@ -68,8 +79,8 @@ internal sealed class ConfigData
         public double forestGiantStompFalloff = 1.0;    // how sharply stomp shake fades with distance
         public double brackenSnapAngle = 90.0;          // degrees camera is snapped to side
         public double freezeStrength = 0.4;         // max freezing degrees at full cold
-        public double freezeBuildSeconds = 200.0;   // seconds outdoor to reach full cold
-        public double freezeRecoverSeconds = 30.0;  // seconds to warm back up once in warm place
+        public double freezeBuildTime = 200.0;   // seconds outdoor to reach full cold
+        public double freezeRecoverTime = 30.0;  // seconds to warm back up once in warm place
         public double freezeLightReduce = 0.35;     // freezing reduces while a light source is equipped or nearby
         public double freezeLightRadius = 3.0;      // meters within which a nearby light source object also reduces freezing
         public double freezeShipOpenDoorTarget = 0.3;  // freezing effect reduces while in the ship with the hangar doors are still open
@@ -79,7 +90,7 @@ internal sealed class ConfigData
         public double screenShakeDecay = 1.5;       // trauma drained per second
         public double explosionTrauma = 1.7;        // shake strength of a nearby explosion, scaled by distance.
         public double landingTrauma = 1.0;      // shake strength of a hard landing, scaled by fall force and carry weight
-        public double damageTrauma = 4.0;       // shake strength of taking damage
+        public double damageTrauma = 3.0;       // shake strength of taking damage
         public double damageKick = 4.0;     // directional camera punch away from the hit
         public double vehicleImpactTrauma = 2.0;        // shake strength of a hard cruiser stops / crashes
         public double flashbangTrauma = 2.5;      // heavy shake on stun grenade blast
@@ -91,10 +102,18 @@ internal sealed class ConfigData
         public double meleeWeaponRecoilKick = 5.0; // upward punch per shovel swing
         public double meleeWeaponMissMultiplier = 0.5; // multiplier when you swing but hit nothing
         public double landingDipStrength = 6.0;     // how far the camera dips down on a hard landing
+        public double landingTiltStrength = 3.0;
+        public double jumpKickStrength = 5.0;
         public double landingWeightInfluence = 0.3;     // how much carry weight hardens landings
         public double maxVelocityRoll = 12.0;
         public double maxVelocityPitch = 10.0;
         public double healthConditionTriggerLimit = 20.0;   // below this health effects fade
+        public double vanillaShakeStrength = 1.0;
+        public double fearFlinch = 6.0;
+        public double fearTremor = 0.5;
+        public double knockbackKickStrength = 6.0;
+        public double vanillaBobScale = 1.0;
+        public double lightningTremor = 0.2;
     }
 
     public sealed class Contextual
