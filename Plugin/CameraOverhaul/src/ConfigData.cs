@@ -112,6 +112,7 @@ internal sealed class ConfigData
         public double fearFlinch = 6.0;
         public double fearTremor = 0.5;
         public double knockbackKickStrength = 6.0;
+        public double playerBumpKick = 3.0;
         public double vanillaBobScale = 1.0;
         public double lightningTremor = 0.2;
     }
