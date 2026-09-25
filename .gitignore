@@ -22,6 +22,7 @@
 *.sqlite
 
 /Thunderstore/build/
+/wiki
 
 bin/**/*.dll
 !bin/**/FirstPersonView.dll
