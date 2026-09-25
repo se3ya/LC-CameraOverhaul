@@ -8,17 +8,25 @@ internal static class SandWormAIPatch
 {
     private const float EmergeRadius = 40f;
 
+    [HarmonyPrefix]
+    [HarmonyPatch("ShakePlayerCameraInProximity", new[] { typeof(Vector3) })]
+    private static void ShakePlayerCameraInProximityPrefix() => HUDManagerPatch.BeginSkip();
+
     [HarmonyPostfix]
     [HarmonyPatch("ShakePlayerCameraInProximity", new[] { typeof(Vector3) })]
-    private static void ShakePlayerCameraInProximityPostfix(SandWormAI __instance)
+    private static void ShakePlayerCameraInProximityPostfix(Vector3 pos)
     {
-        var g = ConfigManager.Data.general;
-        if (!g.enableLeviathanEffects || g.leviathanEmergeTrauma <= 0.0) return;
+        HUDManagerPatch.EndSkip();
 
-        float factor = LandminePatch.ProximityFactor(__instance.transform.position, EmergeRadius);
+        var g = ConfigManager.Data.general;
+        if (!g.enableLeviathanEffects) return;
+
+        float factor = LandminePatch.ProximityFactor(pos, EmergeRadius);
         if (factor <= 0f) return;
 
-        ScreenShakes.BumpTrauma((float)g.leviathanEmergeTrauma * factor);
-        PlayerControllerBPatch.System.AddDamageKick(new Vector3((float)g.leviathanEmergeKick * factor, 0f, 0f));
+        if (g.leviathanEmergeTrauma > 0.0)
+            ScreenShakes.BumpTrauma((float)g.leviathanEmergeTrauma * factor);
+        if (g.leviathanEmergeKick > 0.0)
+            PlayerControllerBPatch.Rig.AddDamageKick(new Vector3((float)g.leviathanEmergeKick * factor, 0f, 0f));
     }
 }
