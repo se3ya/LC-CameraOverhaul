@@ -9,15 +9,25 @@ internal static class LandminePatch
 {
     private const float Radius = 20f;
 
+    [HarmonyPrefix]
+    [HarmonyPatch(nameof(Landmine.SpawnExplosion))]
+    private static void SpawnExplosionPrefix() => HUDManagerPatch.BeginSkip();
+
     [HarmonyPostfix]
     [HarmonyPatch(nameof(Landmine.SpawnExplosion))]
     private static void SpawnExplosionPostfix(Vector3 explosionPosition)
     {
+        HUDManagerPatch.EndSkip();
+
         var g = ConfigManager.Data.general;
         if (!g.enableScreenShake || g.explosionTrauma <= 0.0) return;
 
         float factor = ProximityFactor(explosionPosition, Radius);
-        if (factor > 0f) ScreenShakes.AddTrauma((float)g.explosionTrauma * factor);
+        if (factor <= 0f) return;
+
+        float trauma = (float)g.explosionTrauma * factor;
+        if (HUDManagerPatch.FiredThisFrame) ScreenShakes.BumpTrauma(trauma);
+        else ScreenShakes.AddTrauma(trauma);
     }
 
     internal static float ProximityFactor(Vector3 source, float radius)
