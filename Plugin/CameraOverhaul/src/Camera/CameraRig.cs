@@ -178,7 +178,8 @@ internal sealed class CameraRig
         if (!g.enableFearResponse) return;
 
         double s = MathUtils.Clamp01(severity);
-        if (s > _scare) _scare = s;
+        if (s <= _scare) return;
+        _scare = s;
 
         double kick = g.fearFlinch * s * PunchImpulseScale;
         if (kick <= 0.0) return;
@@ -211,7 +212,10 @@ internal sealed class CameraRig
     }
 
     public void AddDamageKick(Vector3 strength)
-        => _punchVel += strength * (float)PunchImpulseScale;
+    {
+        if (float.IsNaN(strength.sqrMagnitude) || float.IsInfinity(strength.sqrMagnitude)) return;
+        _punchVel += Vector3.ClampMagnitude(strength, MaxPunch) * (float)PunchImpulseScale;
+    }
 
     public void OnCameraUpdate(in CameraContext context, double dt, PlayerControllerB player)
     {
