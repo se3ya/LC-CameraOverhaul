@@ -27,14 +27,14 @@ public class Plugin : BaseUnityPlugin
 
         Log.LogInfo($"Initializing {MyPluginInfo.PLUGIN_NAME}");
 
-        ConfigManager.Initialize(ResolveConfigFile());
+        ConfigManager.Initialize(GetConfigFile());
 
         _harmony.PatchAll();
 
         Log.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
     }
 
-    private ConfigFile ResolveConfigFile()
+    private ConfigFile GetConfigFile()
     {
         BepInPlugin metadata = MetadataHelper.GetMetadata(this);
 
