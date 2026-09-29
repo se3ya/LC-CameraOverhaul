@@ -203,12 +203,14 @@ internal static class PlayerControllerBPatch
     {
         Vector3 off = _rig.OffsetEuler;
 
+        _offsetsMuted = !useCruiserEffects && inControlledCamera && !grabbed;
+
         if (useCruiserEffects)
         {
             off.y = 0f;
             off.z = 0f;
         }
-        else if (inControlledCamera && !grabbed)
+        else if (_offsetsMuted)
         {
             off = Vector3.zero;
         }
@@ -280,6 +282,7 @@ internal static class PlayerControllerBPatch
 
     private static void DeactivateCameraState(PlayerControllerB player, Camera? cam, bool deactivation)
     {
+        _offsetsMuted = true;
         if (_wasActive && cam != null)
             RestoreCamera(cam.transform, VanillaOwnsCameraYaw(player));
 
@@ -470,6 +473,10 @@ internal static class PlayerControllerBPatch
         if (__instance.isClimbingLadder || __instance.inSpecialInteractAnimation) return;
         _rig.OnFootstep();
     }
+
+    private static bool _offsetsMuted;
+
+    internal static bool OffsetsMuted => _offsetsMuted;
 
     private static bool IsInControlledCamera(PlayerControllerB player)
         => player.isClimbingLadder
