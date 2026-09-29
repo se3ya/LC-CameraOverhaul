@@ -200,7 +200,7 @@ internal static class ConfigManager
 
         const string shake = "5. Screen Shake";
         _shakeMaxIntensity = BindFloat(config, shake, "MaxIntensity", (float)d.general.screenShakesMaxIntensity, 0f, 10f,
-            "Degrees of shake at trauma 1. Bigger hits square that, up to a 12 degree ceiling.");
+            "Degrees of shake at trauma 1. Bigger hits square that, up to a 12 degree ceiling. Vanilla shake events are sized separately in section I.");
         _shakeMaxFrequency = BindFloat(config, shake, "MaxFrequency", (float)d.general.screenShakesMaxFrequency, 0f, 20f,
             "Screen shake speed. Higher is harsher.");
         _shakeDecay = BindFloat(config, shake, "Decay", (float)d.general.screenShakeDecay, 0.1f, 5f,
