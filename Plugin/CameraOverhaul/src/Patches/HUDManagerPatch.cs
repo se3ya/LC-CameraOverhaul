@@ -6,13 +6,10 @@ namespace CameraOverhaul;
 [HarmonyPatch(typeof(HUDManager))]
 internal static class HUDManagerPatch
 {
-    private const double SmallTrauma = 0.5;
-    private const double BigTrauma = 1.0;
-    private const double LongTrauma = 0.34;
-    private const double VeryStrongTrauma = 1.41;
-
-    private const float LongHold = 1.15f;
-    private const float VeryStrongHold = 1.2f;
+    private static readonly ShakeProfile SmallShake = new(0.58f, 0.217f, 0.15f, 0f, 120f, 8f, 10f, 0f, false);
+    private static readonly ShakeProfile BigShake = new(2.0f, 0.6f, 0.17f, 0f, 100f, 30f, 20f, 0.8f, true);
+    private static readonly ShakeProfile LongShake = new(0.55f, 1.4f, 0.55f, 0.12f, 124f, 6f, 10f, 0f, false);
+    private static readonly ShakeProfile VeryStrongShake = new(1.9f, 1.467f, 0.05f, 0.45f, 115f, 50f, 20f, 0.8f, true);
 
     private static int _apiSkipFrame = -1;
     private static int _skipFrame = -1;
@@ -44,7 +41,8 @@ internal static class HUDManagerPatch
             && shakeType != ScreenShakeType.Constant
             && _apiSkipFrame != Time.frameCount
             && CameraOverhaulApi.EffectScale > 0f
-            && ConfigManager.Data.general.masterStrength > 0.0;
+            && ConfigManager.Data.general.masterStrength > 0.0
+            && !PlayerControllerBPatch.OffsetsMuted;
 
         if (__state && __instance.playerScreenShakeAnimator != null)
             __instance.playerScreenShakeAnimator.SetBool("ShakingConstant", value: false);
@@ -56,25 +54,24 @@ internal static class HUDManagerPatch
     [HarmonyPatch(nameof(HUDManager.ShakeCamera))]
     private static void ShakeCameraPostfix(ScreenShakeType shakeType, bool __runOriginal, bool __state)
     {
-        if (!__runOriginal && !__state) return;
+        if (!__state) return;
         if (_apiSkipFrame == Time.frameCount) return;
         if (_skipDepth > 0 && _skipFrame == Time.frameCount) return;
 
         var g = ConfigManager.Data.general;
         if (!g.enableScreenShake || !g.enableVanillaShakeEvents || g.vanillaShakeStrength <= 0.0) return;
 
-        double trauma;
-        float hold;
+        ShakeProfile shape;
         switch (shakeType)
         {
-            case ScreenShakeType.Small: trauma = SmallTrauma; hold = 0f; break;
-            case ScreenShakeType.Big: trauma = BigTrauma; hold = 0f; break;
-            case ScreenShakeType.Long: trauma = LongTrauma; hold = LongHold; break;
-            case ScreenShakeType.VeryStrong: trauma = VeryStrongTrauma; hold = VeryStrongHold; break;
+            case ScreenShakeType.Small: shape = SmallShake; break;
+            case ScreenShakeType.Big: shape = BigShake; break;
+            case ScreenShakeType.Long: shape = LongShake; break;
+            case ScreenShakeType.VeryStrong: shape = VeryStrongShake; break;
             default: return;
         }
 
         _firedFrame = Time.frameCount;
-        ScreenShakes.BumpTrauma((float)(trauma * g.vanillaShakeStrength), hold);
+        ScreenShakes.Play(in shape, (float)g.vanillaShakeStrength);
     }
 }
